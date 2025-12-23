@@ -8,10 +8,13 @@
     "start": "next start"
   },
   "dependencies": {
+    "emoji-picker-react": "^4.16.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "react": "19.2.3",
+    "react-audio-voice-recorder": "^2.2.0",
     "react-dom": "19.2.3",
+    "react-dropzone": "^14.3.8",
     "react-icons": "^5.5.0",
     "socket.io-client": "^4.8.2"
   },

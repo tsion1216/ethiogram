@@ -1,14 +1,20 @@
+/* 1. Import Google Font FIRST */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap");
+
+/* 2. Tailwind directives come AFTER imports */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* 3. Your custom CSS */
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, sans-serif;
+  overflow-x: hidden;
 }
 
-/* Better scrollbar */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -19,10 +25,34 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: #c1c1c1;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #a1a1a1;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Ethiopian wave animation */
+@keyframes ethio-wave {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.ethio-gradient {
+  background: linear-gradient(90deg, #078c49, #fcdd09, #da121a, #0f47af);
+  background-size: 400% 400%;
+  animation: ethio-wave 15s ease infinite;
 }
