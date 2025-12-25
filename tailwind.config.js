@@ -7,7 +7,7 @@ module.exports = {
         // Official Ethiopian Flag Colors
         "ethio-green": "#078C49", // Green from flag
         "ethio-yellow": "#FCDD09", // Yellow from flag
-        "ethio-red": "#DA121A", // Red from flag
+        "ethio-red": "#c53a3fff", // Red from flag
         "ethio-blue": "#0F47AF", // Blue for accents
         // Telegram-like colors
         "telegram-primary": "#0088CC",
