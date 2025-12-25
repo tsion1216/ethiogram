@@ -254,12 +254,23 @@ export default function Home() {
 
   // Message handling functions
   const handleSend = () => {
-    if (message.trim()) {
-      const newMessage = {
-        id: messages.length + 1,
+    if (message.trim() && socketRef.current) {
+      const messageData = {
         text: replyingTo
           ? `Replying to: ${replyingTo.text}\n${message}`
           : message,
+        chatId: "ethiogram-main",
+        isFile: false,
+        isVoice: false,
+      };
+
+      // Send via socket
+      socketRef.current.emit("send_message", messageData);
+
+      // Also add to local state for immediate UI update
+      const newMessage = {
+        id: Date.now(),
+        text: messageData.text,
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
@@ -267,14 +278,20 @@ export default function Home() {
         sender: "me",
         status: "sent",
         canEdit: true,
-        reactions: {},
+        isFile: false,
+        isVoice: false,
       };
-      setMessages([...messages, newMessage]);
+
+      setMessages((prev) => [...prev, newMessage]);
       setMessage("");
       setReplyingTo(null);
       setShowEmojiPicker(false);
+
+      // Stop typing indicator
+      socketRef.current.emit("stop_typing", "ethiogram-main");
     }
   };
+
   const handleVoiceRecordingComplete = (audioBlob) => {
     const voiceMessage = {
       id: messages.length + 1,
