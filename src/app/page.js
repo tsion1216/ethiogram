@@ -589,7 +589,28 @@ export default function Home() {
                         ref={inputRef}
                         type="text"
                         value={message}
-                        onChange={(e) => setMessage(e.target.value)}
+                        onChange={(e) => {
+                          setMessage(e.target.value);
+
+                          // Send typing indicator
+                          if (socketRef.current) {
+                            if (typingTimeoutRef.current) {
+                              clearTimeout(typingTimeoutRef.current);
+                            }
+
+                            socketRef.current.emit(
+                              "start_typing",
+                              "ethiogram-main"
+                            );
+
+                            typingTimeoutRef.current = setTimeout(() => {
+                              socketRef.current.emit(
+                                "stop_typing",
+                                "ethiogram-main"
+                              );
+                            }, 1000);
+                          }
+                        }}
                         onKeyPress={(e) =>
                           e.key === "Enter" &&
                           (editingMessage ? finishEditMessage() : handleSend())
