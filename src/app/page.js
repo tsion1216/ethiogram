@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef } from "react";
 import socketService from "@/lib/socket";
 import { useState, useRef, useEffect } from "react";
@@ -74,6 +75,76 @@ export default function Home() {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
+  // Add after your state declarations
+  const socketRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+
+  // Connect to socket server
+  useEffect(() => {
+    // Connect to socket server with user data
+    const socket = socketService.connect({
+      name: "You", // Replace with actual user name later
+      avatar: "🇪🇹",
+    });
+
+    socketRef.current = socket;
+
+    // Listen for incoming messages
+    socket.on("receive_message", (newMessage) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: newMessage.id,
+          text: newMessage.text,
+          time: new Date(newMessage.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          sender: newMessage.senderId === socket.id ? "me" : "them",
+          senderId: newMessage.senderId,
+          senderName: newMessage.senderName,
+          status: "delivered",
+          canEdit: newMessage.senderId === socket.id,
+          isFile: newMessage.isFile,
+          isVoice: newMessage.isVoice,
+          fileData: newMessage.fileData,
+          voiceData: newMessage.voiceData,
+          timestamp: newMessage.timestamp,
+        },
+      ]);
+    });
+
+    // Listen for online users
+    socket.on("online_users", (users) => {
+      console.log("Online users:", users);
+      // Update your contacts list with online status
+    });
+
+    // Listen for typing indicators
+    socket.on("user_typing", ({ userId, userName, isTyping }) => {
+      console.log(`${userName} is ${isTyping ? "typing..." : "not typing"}`);
+      // Update UI to show typing indicator
+    });
+
+    // Listen for user status changes
+    socket.on("user_online", (user) => {
+      console.log(`${user.name} came online`);
+    });
+
+    socket.on("user_offline", (user) => {
+      console.log(`${user.name} went offline`);
+    });
+
+    // Join the main chat room
+    socket.emit("join_chat", "ethiogram-main");
+
+    // Cleanup on unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []);
   const contacts = [
     {
       id: 1,
