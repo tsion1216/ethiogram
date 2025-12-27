@@ -278,7 +278,15 @@ const ChatBubble = ({
               isSent ? "text-blue-100" : "text-gray-500"
             }`}
           >
-            <span className="text-[11px]">{time}</span>
+            <span className="text-[11px]">
+              {
+                time.includes("AM") || time.includes("PM")
+                  ? convertToEthiopian(
+                      new Date(`${new Date().toDateString()} ${time}`)
+                    ).formatted
+                  : time // Fallback for non-time formats
+              }
+            </span>
             <div className="flex items-center">
               {getStatusIcon() && (
                 <span className="text-[11px] ml-2">{getStatusIcon()}</span>
