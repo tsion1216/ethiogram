@@ -366,7 +366,11 @@ export default function Home() {
 
   // Don't render anything until client-side
   if (!isClient) {
-    return <div className="min-h-screen bg-gray-100 flex items-center justify-center">Loading Ethiogram...</div>;
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        Loading Ethiogram...
+      </div>
+    );
   }
 
   return (
@@ -471,6 +475,10 @@ export default function Home() {
                     <FiMoreVertical className="w-5 h-5" />
                   </button>
                 </div>
+              </div>
+              {/* Add this in your Chat Area, before messages */}
+              <div className="p-4 border-b">
+                <EthiopianDateDisplay />
               </div>
 
               {/* Messages Area */}
@@ -651,9 +659,7 @@ export default function Home() {
                         }}
                         onKeyPress={(e) =>
                           e.key === "Enter" &&
-                          (editingMessage
-                            ? finishEditMessage()
-                            : handleSend())
+                          (editingMessage ? finishEditMessage() : handleSend())
                         }
                         placeholder={
                           editingMessage
@@ -701,9 +707,8 @@ export default function Home() {
         {/* Stats Footer */}
         <div className="mt-6 text-center text-gray-600 text-sm">
           <p>
-            Ethiogram - <span className="text-ethio-green">3</span> ተጠቃሚዎች
-            በመስመር ላይ | <span className="text-ethio-blue">127</span> መልእክቶች
-            ዛሬ
+            Ethiogram - <span className="text-ethio-green">3</span> ተጠቃሚዎች በመስመር
+            ላይ | <span className="text-ethio-blue">127</span> መልእክቶች ዛሬ
           </p>
           <p className="mt-1 text-xs">
             © 2024 Ethiogram - ሁሉም መብቶች የተጠበቁ ናቸው 🇪🇹
