@@ -1,7 +1,7 @@
 "use client";
 
-import socketService from "@/lib/socket";
 import { useState, useRef, useEffect } from "react";
+import socketService from "@/lib/socket";
 import {
   FiSearch,
   FiMoreVertical,
@@ -11,9 +11,9 @@ import {
   FiPaperclip,
   FiSend,
   FiX,
-  FiImage, // Added here
-  FiFileText, // Added here
-  FiMusic, // Added here
+  FiImage,
+  FiFileText,
+  FiMusic,
 } from "react-icons/fi";
 import { FaRegCircle } from "react-icons/fa";
 import dynamic from "next/dynamic";
@@ -28,16 +28,22 @@ const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
 import ChatBubble from "@/components/ChatBubble";
 import ContactItem from "@/components/ContactItem";
 import FileUpload from "@/components/FileUpload";
-import { MdAudiotrack } from "react-icons/md"; // Only non-Fi icon remains
+import { MdAudiotrack } from "react-icons/md";
 
 import VoiceRecorder from "@/components/VoiceRecorder";
 import { FaMicrophone } from "react-icons/fa";
 
 export default function Home() {
+  // Fix 1: Add client check for hydration
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
     {
-      id: 1,
+      id: "1-abc123",
       text: "ሰላም! እንዴት ነህ? 🇪🇹 ዛሬ እንዴት አለህ?",
       time: "10:30 AM",
       sender: "them",
@@ -46,7 +52,7 @@ export default function Home() {
       reactions: { "😂": 1, "❤️": 1 },
     },
     {
-      id: 2,
+      id: "2-def456",
       text: "ደህና ነኝ! አመሰግናለሁ 🇪🇹 አንተስ?",
       time: "10:31 AM",
       sender: "me",
@@ -60,29 +66,33 @@ export default function Home() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeReactionMenu, setActiveReactionMenu] = useState(null);
-  // Add AFTER your existing states like [message, setMessage], [messages, setMessages], etc.
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [typingUsers, setTypingUsers] = useState([]); // For typing indicator UI
 
   const emojiPickerRef = useRef(null);
   const inputRef = useRef(null);
-  // Add this function AFTER your state declarations but BEFORE the contacts array
+  const socketRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+
+  // Fix 2: Better unique ID generator
+  const generateUniqueId = () => {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  };
+
   const formatFileSize = (bytes) => {
     if (!bytes) return "0 B";
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
-  // Add after your state declarations
-  const socketRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
 
   // Connect to socket server
   useEffect(() => {
     // Connect to socket server with user data
     const socket = socketService.connect({
-      name: "You", // Replace with actual user name later
+      name: "You",
       avatar: "🇪🇹",
     });
 
@@ -93,7 +103,7 @@ export default function Home() {
       setMessages((prev) => [
         ...prev,
         {
-          id: newMessage.id,
+          id: generateUniqueId(),
           text: newMessage.text,
           time: new Date(newMessage.timestamp).toLocaleTimeString([], {
             hour: "2-digit",
@@ -116,13 +126,23 @@ export default function Home() {
     // Listen for online users
     socket.on("online_users", (users) => {
       console.log("Online users:", users);
-      // Update your contacts list with online status
     });
 
     // Listen for typing indicators
     socket.on("user_typing", ({ userId, userName, isTyping }) => {
       console.log(`${userName} is ${isTyping ? "typing..." : "not typing"}`);
-      // Update UI to show typing indicator
+      setTypingUsers((prev) => {
+        if (isTyping) {
+          // Add user to typing list
+          return [
+            ...prev.filter((u) => u.id !== userId),
+            { id: userId, name: userName },
+          ];
+        } else {
+          // Remove user from typing list
+          return prev.filter((u) => u.id !== userId);
+        }
+      });
     });
 
     // Listen for user status changes
@@ -144,6 +164,7 @@ export default function Home() {
       }
     };
   }, []);
+
   const contacts = [
     {
       id: 1,
@@ -202,11 +223,10 @@ export default function Home() {
     }
   };
 
-  // Add AFTER handleEmojiClick function
   const handleFilesSelected = (files) => {
     // Convert files to messages
     const fileMessages = files.map((fileObj, index) => ({
-      id: messages.length + index + 1,
+      id: generateUniqueId(),
       text: `📎 ${fileObj.name}`,
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -268,7 +288,7 @@ export default function Home() {
 
       // Also add to local state for immediate UI update
       const newMessage = {
-        id: Date.now(),
+        id: generateUniqueId(),
         text: messageData.text,
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
@@ -293,7 +313,7 @@ export default function Home() {
 
   const handleVoiceRecordingComplete = (audioBlob) => {
     const voiceMessage = {
-      id: messages.length + 1,
+      id: generateUniqueId(),
       text: "🎤 ድምጽ መልእክት",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -305,7 +325,7 @@ export default function Home() {
       isVoice: true,
       audioBlob: audioBlob,
       audioURL: URL.createObjectURL(audioBlob),
-      duration: Math.floor(audioBlob.size / 16000), // Rough estimate
+      duration: Math.floor(audioBlob.size / 16000),
     };
 
     setMessages([...messages, voiceMessage]);
@@ -342,6 +362,11 @@ export default function Home() {
   const cancelReply = () => {
     setReplyingTo(null);
   };
+
+  // Don't render anything until client-side
+  if (!isClient) {
+    return <div className="min-h-screen bg-gray-100 flex items-center justify-center">Loading Ethiogram...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 font-amharic">
@@ -416,7 +441,21 @@ export default function Home() {
                   <div>
                     <h2 className="font-bold text-lg">Abebe Bekele</h2>
                     <p className="text-sm text-green-600">
-                      በመስመር ላይ - አሁን ይጽፋል...
+                      {typingUsers.length > 0 ? (
+                        <span className="flex items-center">
+                          <span className="mr-2">
+                            {typingUsers.map((u) => u.name).join(", ")}{" "}
+                            {typingUsers.length === 1 ? "is" : "are"} typing
+                          </span>
+                          <span className="flex">
+                            <span className="typing-dot w-1 h-1 bg-green-600 rounded-full mx-0.5"></span>
+                            <span className="typing-dot w-1 h-1 bg-green-600 rounded-full mx-0.5"></span>
+                            <span className="typing-dot w-1 h-1 bg-green-600 rounded-full mx-0.5"></span>
+                          </span>
+                        </span>
+                      ) : (
+                        "በመስመር ላይ"
+                      )}
                     </p>
                   </div>
                 </div>
@@ -565,13 +604,12 @@ export default function Home() {
                     <button
                       onClick={() => {
                         setShowFileUpload(!showFileUpload);
-                        setShowEmojiPicker(false); // Close emoji picker if open
+                        setShowEmojiPicker(false);
                       }}
                       className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
                     >
                       <FiPaperclip className="w-5 h-5 text-gray-500" />
                     </button>
-                    {/* Add this button in your input area, next to the paperclip button */}
                     <button
                       onClick={() => {
                         setShowVoiceRecorder(!showVoiceRecorder);
@@ -612,7 +650,9 @@ export default function Home() {
                         }}
                         onKeyPress={(e) =>
                           e.key === "Enter" &&
-                          (editingMessage ? finishEditMessage() : handleSend())
+                          (editingMessage
+                            ? finishEditMessage()
+                            : handleSend())
                         }
                         placeholder={
                           editingMessage
@@ -630,7 +670,6 @@ export default function Home() {
                         <FiSmile className="w-5 h-5 text-gray-500" />
                       </button>
                     </div>
-                    {/* Add this RIGHT AFTER the EmojiPicker component */}
                     {showFileUpload && (
                       <div className="absolute bottom-16 left-4 z-50">
                         <FileUpload
@@ -661,8 +700,9 @@ export default function Home() {
         {/* Stats Footer */}
         <div className="mt-6 text-center text-gray-600 text-sm">
           <p>
-            Ethiogram - <span className="text-ethio-green">3</span> ተጠቃሚዎች በመስመር
-            ላይ | <span className="text-ethio-blue">127</span> መልእክቶች ዛሬ
+            Ethiogram - <span className="text-ethio-green">3</span> ተጠቃሚዎች
+            በመስመር ላይ | <span className="text-ethio-blue">127</span> መልእክቶች
+            ዛሬ
           </p>
           <p className="mt-1 text-xs">
             © 2024 Ethiogram - ሁሉም መብቶች የተጠበቁ ናቸው 🇪🇹
