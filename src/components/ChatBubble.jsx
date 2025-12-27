@@ -280,11 +280,9 @@ const ChatBubble = ({
           >
             <span className="text-[11px]">
               {
-                time.includes("AM") || time.includes("PM")
-                  ? convertToEthiopian(
-                      new Date(`${new Date().toDateString()} ${time}`)
-                    ).formatted
-                  : time // Fallback for non-time formats
+                convertToEthiopian(
+                  new Date(`${new Date().toDateString()} ${time}`)
+                ).formatted
               }
             </span>
             <div className="flex items-center">

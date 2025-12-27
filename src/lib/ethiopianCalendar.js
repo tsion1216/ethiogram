@@ -1,8 +1,8 @@
-import { EthiopianDate } from "ethiopian-calendar-date-converter";
+import { EthDateTime } from "ethiopian-calendar-date-converter";
 
 export const convertToEthiopian = (gregorianDate) => {
   const date = new Date(gregorianDate);
-  const ethiopian = EthiopianDate.fromGregorian(date);
+  const ethiopian = EthDateTime.fromGregorian(date);
 
   return {
     year: ethiopian.year,
@@ -64,7 +64,7 @@ export const convertToEthiopianNumerals = (number) => {
 };
 
 export const getEthiopianHoliday = (date) => {
-  const ethiopian = EthiopianDate.fromGregorian(date);
+  const ethiopian = EthDateTime.fromGregorian(date);
   const holidays = {
     "09-11": { name: "እንቁጣጣሽ (አዲስ ዓመት)", emoji: "🎉", isHoliday: true },
     "09-17": { name: "መስቀል (መስቀል)", emoji: "✝️", isHoliday: true },
