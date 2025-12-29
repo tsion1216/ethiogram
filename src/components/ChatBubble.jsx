@@ -278,13 +278,8 @@ const ChatBubble = ({
               isSent ? "text-blue-100" : "text-gray-500"
             }`}
           >
-            <span className="text-[11px]">
-              {
-                convertToEthiopian(
-                  new Date(`${new Date().toDateString()} ${time}`)
-                ).formatted
-              }
-            </span>
+            <span className="text-[11px]">{time}</span>{" "}
+            {/* Keep original time */}
             <div className="flex items-center">
               {getStatusIcon() && (
                 <span className="text-[11px] ml-2">{getStatusIcon()}</span>
