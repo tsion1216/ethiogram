@@ -52,21 +52,35 @@ const UserProfileModal = ({ isOpen, onClose, user, onUpdate }) => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Avatar Upload */}
+            {/* In UserProfileModal.jsx, update the avatar section */}
             <div className="flex flex-col items-center mb-6">
               <div className="relative">
                 <div
                   onClick={handleAvatarClick}
-                  className="w-24 h-24 bg-gradient-to-br from-ethio-green to-ethio-blue rounded-full flex items-center justify-center text-white text-4xl mb-2 cursor-pointer hover:opacity-90"
+                  className="w-24 h-24 bg-gradient-to-br from-ethio-green to-ethio-blue rounded-full flex items-center justify-center text-white text-4xl mb-2 cursor-pointer hover:opacity-90 overflow-hidden"
                 >
-                  {profileData.avatar.length > 2 ? (
+                  {profileData.avatar &&
+                  profileData.avatar.startsWith("data:image") ? (
                     <img
                       src={profileData.avatar}
                       alt="Profile"
                       className="w-full h-full rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                        e.target.nextSibling.style.display = "flex";
+                      }}
                     />
-                  ) : (
-                    profileData.avatar
-                  )}
+                  ) : null}
+                  <div
+                    className={`w-full h-full flex items-center justify-center ${
+                      profileData.avatar &&
+                      profileData.avatar.startsWith("data:image")
+                        ? "hidden"
+                        : ""
+                    }`}
+                  >
+                    {profileData.avatar || user?.name?.charAt(0) || "👤"}
+                  </div>
                 </div>
                 <button
                   type="button"

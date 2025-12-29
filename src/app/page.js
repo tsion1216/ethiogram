@@ -835,11 +835,19 @@ export default function Home() {
         <div className="bg-white rounded-2xl shadow-chat overflow-hidden">
           <div className="flex h-[75vh]">
             {/* Sidebar */}
+
             <div className="w-1/4 border-r bg-gray-50 flex flex-col">
               <div className="p-4">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="font-semibold text-gray-700">ውይይቶች</h2>
                   <div className="flex space-x-2">
+                    <button
+                      onClick={() => setShowAddContact(true)}
+                      className="p-2 hover:bg-gray-200 rounded-full"
+                      title="Add contact"
+                    >
+                      <FiUser className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => setShowCreateGroup(true)}
                       className="p-2 hover:bg-gray-200 rounded-full"
@@ -850,59 +858,84 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Pinned Groups */}
-                <div className="mb-4">
-                  <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">
-                    📌 Pinned
-                  </h3>
-                  <div className="space-y-1">
-                    {groups
-                      .filter((group) => group.pinned)
-                      .map((group) => (
-                        <div key={group.id} className="contact-item">
+                {/* Scrollable Contacts Area */}
+                <div
+                  className="overflow-y-auto"
+                  style={{ maxHeight: "calc(75vh - 200px)" }}
+                >
+                  {/* Pinned Groups */}
+                  <div className="mb-4">
+                    <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">
+                      📌 Pinned
+                    </h3>
+                    <div className="space-y-1">
+                      {groups
+                        .filter((group) => group.pinned)
+                        .map((group) => (
+                          <div key={group.id} className="contact-item">
+                            <ContactItem
+                              id={group.id}
+                              name={group.name}
+                              lastMessage={group.lastMessage}
+                              time={group.time}
+                              unread={group.unread}
+                              isOnline={group.isOnline}
+                              isGroup={true}
+                              groupMembers={group.members}
+                              onClick={handleContactClick}
+                              isActive={activeChat.id === group.id}
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* All Contacts & Groups */}
+                  <div>
+                    <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">
+                      👥 All Chats ({contacts.length + groups.length})
+                    </h3>
+                    <div className="space-y-1">
+                      {contacts.map((contact) => (
+                        <div key={contact.id} className="contact-item">
                           <ContactItem
-                            id={group.id}
-                            name={group.name}
-                            lastMessage={group.lastMessage}
-                            time={group.time}
-                            unread={group.unread}
-                            isOnline={group.isOnline}
-                            isGroup={true}
-                            groupMembers={group.members}
+                            id={contact.id}
+                            name={contact.name}
+                            lastMessage={contact.lastMessage}
+                            time={contact.time}
+                            unread={contact.unread}
+                            isOnline={contact.isOnline}
+                            isGroup={contact.isGroup}
+                            groupMembers={contact.groupMembers}
                             onClick={handleContactClick}
-                            isActive={activeChat.id === group.id}
+                            isActive={activeChat.id === contact.id}
                           />
                         </div>
                       ))}
-                  </div>
-                </div>
-
-                {/* All Contacts & Groups */}
-                <div>
-                  <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">
-                    👥 All Chats
-                  </h3>
-                  <div className="space-y-1">
-                    {contacts.map((contact) => (
-                      <div key={contact.id} className="contact-item">
-                        <ContactItem
-                          id={contact.id}
-                          name={contact.name}
-                          lastMessage={contact.lastMessage}
-                          time={contact.time}
-                          unread={contact.unread}
-                          isOnline={contact.isOnline}
-                          isGroup={contact.isGroup}
-                          groupMembers={contact.groupMembers}
-                          onClick={handleContactClick}
-                          isActive={activeChat.id === contact.id}
-                        />
-                      </div>
-                    ))}
+                      {groups
+                        .filter((group) => !group.pinned)
+                        .map((group) => (
+                          <div key={group.id} className="contact-item">
+                            <ContactItem
+                              id={group.id}
+                              name={group.name}
+                              lastMessage={group.lastMessage}
+                              time={group.time}
+                              unread={group.unread}
+                              isOnline={group.isOnline}
+                              isGroup={true}
+                              groupMembers={group.members}
+                              onClick={handleContactClick}
+                              isActive={activeChat.id === group.id}
+                            />
+                          </div>
+                        ))}
+                    </div>
                   </div>
                 </div>
               </div>
 
+              {/* User Profile at bottom - stays fixed */}
               <div className="mt-auto p-4 border-t">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-ethio-yellow to-ethio-red rounded-full flex items-center justify-center text-white font-bold">
@@ -918,7 +951,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
             {/* Chat Area */}
             <div className="flex-1 flex flex-col">
               {/* Chat Header */}
