@@ -10,8 +10,16 @@ import {
   FiDownload,
   FiPlay,
   FiMusic,
+  FiCheck,
+  FiCornerUpLeft,
+  FiEdit,
+  FiTrash2,
+  FiMoreVertical,
+  FiBell,
+  FiShield,
 } from "react-icons/fi";
 import { MdAudiotrack } from "react-icons/md";
+import { FaMicrophone } from "react-icons/fa";
 
 const ChatBubble = ({
   message,
@@ -26,6 +34,10 @@ const ChatBubble = ({
   reactions = {},
   showReactionMenu,
   toggleReactionMenu,
+  isAnnouncement,
+  senderName,
+  isGroupChat,
+  isAdminMessage,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -85,13 +97,73 @@ const ChatBubble = ({
     setImageError(true);
   };
 
+  // Announcement Message Component
+  if (isAnnouncement) {
+    return (
+      <div className="flex justify-center mb-4">
+        <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg p-4 max-w-md w-full shadow-sm">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
+                <FiBell className="w-4 h-4 text-white" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-yellow-700 text-sm">
+                    📢 Announcement
+                  </span>
+                  {isAdminMessage && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <FiShield className="w-3 h-3 mr-1" />
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-gray-500">{time}</span>
+              </div>
+              {senderName && (
+                <p className="text-sm font-medium text-gray-800 mb-2">
+                  From: {senderName}
+                </p>
+              )}
+              <p className="text-gray-800 whitespace-pre-wrap break-words">
+                {message.text}
+              </p>
+              <div className="mt-3 pt-2 border-t border-yellow-200 flex justify-end">
+                <button
+                  onClick={() => onReply && onReply(message)}
+                  className="text-xs text-yellow-600 hover:text-yellow-700 flex items-center"
+                >
+                  <FiCornerUpLeft className="w-3 h-3 mr-1" />
+                  Reply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular Message Component
   return (
     <div
-      className={`flex ${isSent ? "justify-end" : "justify-start"} mb-2 group`}
+      className={`flex ${isSent ? "justify-end" : "justify-start"} mb-4 group`}
       onMouseEnter={() => setShowMenu(true)}
       onMouseLeave={() => setShowMenu(false)}
     >
       <div className="flex flex-col items-end max-w-full">
+        {/* Sender name for group chats */}
+        {!isSent && isGroupChat && senderName && (
+          <div className="mb-1 ml-2 self-start">
+            <span className="text-xs font-medium text-gray-700">
+              {senderName}
+            </span>
+          </div>
+        )}
+
         {/* Message Bubble */}
         <div
           className={`relative max-w-xs md:max-w-md rounded-2xl px-4 py-3 ${
@@ -176,9 +248,8 @@ const ChatBubble = ({
                 </div>
               )}
 
-              {/* ⬇️ ADD VOICE MESSAGE CODE RIGHT HERE ⬇️ */}
               {/* Voice Message */}
-              {message.isVoice ? (
+              {message.isVoice && (
                 <div className={`${isSent ? "text-white" : "text-gray-800"}`}>
                   <div className="flex items-center space-x-3 mb-3">
                     <div
@@ -202,8 +273,7 @@ const ChatBubble = ({
                     </div>
                   </div>
                 </div>
-              ) : null}
-              {/* ⬆️ END OF VOICE MESSAGE CODE ⬆️ */}
+              )}
 
               {/* Download Button */}
               <button
@@ -223,52 +293,64 @@ const ChatBubble = ({
             <p className="text-[15px] leading-relaxed">{message.text}</p>
           )}
 
-          {/* Message Actions */}
+          {/* Message Actions Menu */}
           {showMenu && (
             <div
-              className={`absolute -top-6 ${
+              className={`absolute -top-8 ${
                 isSent ? "right-0" : "left-0"
               } flex space-x-1 ${
                 isSent ? "bg-blue-500 text-white" : "bg-white text-gray-700"
-              } border rounded-full shadow-sm px-2 py-1`}
+              } border rounded-full shadow-lg px-3 py-2`}
             >
               {isSent && canEdit && !message.isFile && (
                 <>
                   <button
                     onClick={() => onEdit(message.id, message.text)}
-                    className={`text-xs px-2 hover:opacity-80 ${
+                    className={`p-1 rounded-full hover:opacity-80 ${
                       isSent ? "hover:bg-blue-600" : "hover:bg-gray-100"
                     }`}
+                    title="Edit"
                   >
-                    Edit
+                    <FiEdit className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => onDelete(message.id)}
-                    className={`text-xs px-2 ${
+                    className={`p-1 rounded-full ${
                       isSent
-                        ? "text-red-200 hover:text-red-100 hover:bg-blue-600"
-                        : "text-red-600 hover:text-red-700 hover:bg-gray-100"
+                        ? "hover:bg-blue-600"
+                        : "hover:bg-gray-100 text-red-600"
                     }`}
+                    title="Delete"
                   >
-                    Delete
+                    <FiTrash2 className="w-4 h-4" />
                   </button>
                 </>
               )}
               <button
                 onClick={() => onReply(message)}
-                className={`text-xs px-2 hover:opacity-80 ${
+                className={`p-1 rounded-full hover:opacity-80 ${
                   isSent ? "hover:bg-blue-600" : "hover:bg-gray-100"
                 }`}
+                title="Reply"
               >
-                Reply
+                <FiCornerUpLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={toggleReactionMenu}
-                className={`text-xs px-2 hover:opacity-80 ${
+                className={`p-1 rounded-full hover:opacity-80 ${
                   isSent ? "hover:bg-blue-600" : "hover:bg-gray-100"
                 }`}
+                title="Add reaction"
               >
-                <FiSmile className="inline w-3 h-3" />
+                <FiSmile className="w-4 h-4" />
+              </button>
+              <button
+                className={`p-1 rounded-full hover:opacity-80 ${
+                  isSent ? "hover:bg-blue-600" : "hover:bg-gray-100"
+                }`}
+                title="More options"
+              >
+                <FiMoreVertical className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -279,9 +361,13 @@ const ChatBubble = ({
               isSent ? "text-blue-100" : "text-gray-500"
             }`}
           >
-            <span className="text-[11px]">{time}</span>{" "}
-            {/* Keep original time */}
+            <span className="text-[11px]">{time}</span>
             <div className="flex items-center">
+              {isGroupChat && isSent && (
+                <span className="text-[10px] mr-2 opacity-75">
+                  You • {time}
+                </span>
+              )}
               {getStatusIcon() && (
                 <span className="text-[11px] ml-2">{getStatusIcon()}</span>
               )}
@@ -301,13 +387,36 @@ const ChatBubble = ({
                 key={emoji}
                 className={`text-xs ${
                   isSent
-                    ? "bg-blue-100 text-blue-800"
-                    : "bg-gray-100 text-gray-700"
-                } rounded-full px-2 py-1 mr-1 mb-1 flex items-center`}
+                    ? "bg-blue-100 text-blue-800 border border-blue-200"
+                    : "bg-gray-100 text-gray-700 border border-gray-200"
+                } rounded-full px-3 py-1 mr-1 mb-1 flex items-center cursor-pointer hover:scale-105 transition-transform`}
+                onClick={() => onReact && onReact(emoji)}
               >
                 <span className="mr-1">{emoji}</span>
-                <span>{count}</span>
+                <span className="font-medium">{count}</span>
               </div>
+            ))}
+          </div>
+        )}
+
+        {/* Quick Reactions Popup (when showReactionMenu is true) */}
+        {showReactionMenu && (
+          <div
+            className={`mt-2 ${
+              isSent ? "self-end" : "self-start"
+            } bg-white border rounded-full shadow-lg px-3 py-2 flex space-x-2 z-10`}
+          >
+            {["👍", "❤️", "😂", "😮", "😢", "🙏"].map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => {
+                  onReact && onReact(emoji);
+                  toggleReactionMenu && toggleReactionMenu();
+                }}
+                className="text-lg hover:scale-125 transition-transform"
+              >
+                {emoji}
+              </button>
             ))}
           </div>
         )}
