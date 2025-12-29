@@ -21,17 +21,17 @@ export const auth = {
         // Mock validation
         if (email && password.length >= 6) {
           currentUser = {
-            id: "user-" + Date.now(),
+            id: 'user-' + Date.now(),
             email,
-            name: email.split("@")[0],
-            avatar: "🇪🇹",
+            name: email.split('@')[0],
+            avatar: '🇪🇹',
             isOnline: true,
             joinedAt: new Date().toISOString(),
           };
-          authToken = "mock-jwt-token";
+          authToken = 'mock-jwt-token';
           resolve(currentUser);
         } else {
-          reject(new Error("Invalid credentials"));
+          reject(new Error('Invalid credentials'));
         }
       }, 1000);
     });
@@ -41,22 +41,18 @@ export const auth = {
   signup: async (userData) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        if (
-          userData.email &&
-          userData.password &&
-          userData.password.length >= 6
-        ) {
+        if (userData.email && userData.password && userData.password.length >= 6) {
           currentUser = {
-            id: "user-" + Date.now(),
+            id: 'user-' + Date.now(),
             ...userData,
-            avatar: "🇪🇹",
+            avatar: '🇪🇹',
             isOnline: true,
             joinedAt: new Date().toISOString(),
           };
-          authToken = "mock-jwt-token";
+          authToken = 'mock-jwt-token';
           resolve(currentUser);
         } else {
-          reject(new Error("Invalid user data"));
+          reject(new Error('Invalid user data'));
         }
       }, 1000);
     });
@@ -76,7 +72,7 @@ export const auth = {
           currentUser = { ...currentUser, ...profileData };
           resolve(currentUser);
         } else {
-          reject(new Error("Not authenticated"));
+          reject(new Error('Not authenticated'));
         }
       }, 500);
     });
