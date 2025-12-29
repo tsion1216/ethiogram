@@ -21,6 +21,8 @@ import {
   FiBell,
   FiArchive,
   FiLogOut,
+  FiMail,
+  FiUser,
 } from "react-icons/fi";
 import { FaRegCircle } from "react-icons/fa";
 import dynamic from "next/dynamic";
@@ -43,12 +45,21 @@ import CreateGroupModal from "@/components/CreateGroupModal";
 import AddMembersModal from "@/components/AddMembersModal";
 import GroupInfoSidebar from "@/components/GroupInfoSidebar";
 
+// Import Auth Components (create these files)
+import AuthModal from "@/components/AuthModal";
+import UserProfileModal from "@/components/UserProfileModal";
+import { auth } from "@/lib/auth";
+
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Authentication States
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Chat States
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [editingMessage, setEditingMessage] = useState(null);
@@ -60,10 +71,14 @@ export default function Home() {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
 
+  // Contact and Chat States
+  const [selectedContact, setSelectedContact] = useState(null);
+  const [activeChatType, setActiveChatType] = useState("group");
+
   // Group chat states
   const [activeChat, setActiveChat] = useState({
     id: "ethiogram-main",
-    type: "group", // 'group' or 'private'
+    type: "group",
     name: "Ethiogram Main Group",
     description: "Main public group for all Ethiogram users",
     members: 127,
@@ -77,7 +92,6 @@ export default function Home() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState(null);
 
   const emojiPickerRef = useRef(null);
   const inputRef = useRef(null);
@@ -162,20 +176,227 @@ export default function Home() {
     { id: "user-6", name: "Selamawit Tesfaye", isOnline: false, avatar: "S" },
   ]);
 
+  // Update your contacts array to include ids and group info
+  const contacts = [
+    {
+      id: "private-1",
+      name: "Abebe Bekele",
+      lastMessage: "ሰላም! እንዴት ነህ?",
+      time: "2 min",
+      unread: 2,
+      isOnline: true,
+      isGroup: false,
+    },
+    {
+      id: "private-2",
+      name: "Tigist Worku",
+      lastMessage: "መልካም ቀን!",
+      time: "1 hr",
+      unread: 0,
+      isOnline: true,
+      isGroup: false,
+    },
+    {
+      id: "group-1",
+      name: "Ethiogram Main",
+      lastMessage: "Welcome everyone!",
+      time: "2 min",
+      unread: 3,
+      isOnline: true,
+      isGroup: true,
+      groupMembers: 127,
+    },
+    {
+      id: "group-2",
+      name: "Addis Tech Hub",
+      lastMessage: "ሰላም ወንድሞች! 🚀",
+      time: "1 hr",
+      unread: 12,
+      isOnline: true,
+      isGroup: true,
+      groupMembers: 45,
+    },
+  ];
+
   const generateUniqueId = () => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Socket connection with group support
+  // ==================== AUTHENTICATION FUNCTIONS ====================
+
+  // Check authentication on component mount
   useEffect(() => {
+    setIsClient(true);
+
+    // Check if user is already logged in
+    const user = auth.getUser();
+    if (user) {
+      setCurrentUser(user);
+      initializeSocketConnection(user);
+    } else {
+      // Show auth modal if not logged in
+      setShowAuthModal(true);
+    }
+    setIsLoading(false);
+  }, []);
+
+  // Initialize socket connection with user data
+  const initializeSocketConnection = (user) => {
     const socket = socketService.connect({
-      name: "You",
-      avatar: "🇪🇹",
-      userId: generateUniqueId(),
+      id: user.id,
+      name: user.name,
+      avatar: user.avatar,
+      userId: user.id,
     });
 
     socketRef.current = socket;
+    setupSocketListeners(socket);
 
+    // Join active chat
+    socket.emit("join_chat", activeChat.id);
+  };
+
+  // Login handler
+  const handleLogin = async (credentials) => {
+    try {
+      const user = await auth.login(credentials.email, credentials.password);
+      setCurrentUser(user);
+      setShowAuthModal(false);
+
+      // Initialize socket connection with authenticated user
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+      initializeSocketConnection(user);
+    } catch (error) {
+      console.error("Login failed:", error);
+      alert("Login failed. Please check your credentials.");
+    }
+  };
+
+  // Signup handler
+  const handleSignup = async (userData) => {
+    try {
+      const user = await auth.signup(userData);
+      setCurrentUser(user);
+      setShowAuthModal(false);
+
+      // Initialize socket connection with new user
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+      initializeSocketConnection(user);
+    } catch (error) {
+      console.error("Signup failed:", error);
+      alert("Signup failed. Please try again.");
+    }
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    auth.logout();
+    setCurrentUser(null);
+    setShowAuthModal(true);
+
+    // Disconnect socket
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+  };
+
+  // Profile update handler
+  const handleProfileUpdate = async (profileData) => {
+    try {
+      const updatedUser = await auth.updateProfile(profileData);
+      setCurrentUser(updatedUser);
+      setShowProfileModal(false);
+
+      // Update socket connection with new profile
+      if (socketRef.current) {
+        socketRef.current.emit("update_profile", profileData);
+      }
+    } catch (error) {
+      console.error("Profile update failed:", error);
+    }
+  };
+
+  // ==================== CONTACT CLICK FUNCTIONS ====================
+
+  // Function to handle contact click
+  const handleContactClick = (contact) => {
+    setSelectedContact(contact);
+    setActiveChatType(contact.isGroup ? "group" : "private");
+
+    // Update active chat
+    setActiveChat({
+      id: contact.id,
+      type: contact.isGroup ? "group" : "private",
+      name: contact.name,
+      isOnline: contact.isOnline,
+      avatar: contact.isGroup ? "👥" : contact.name.charAt(0),
+      members: contact.groupMembers || 1,
+      isGroup: contact.isGroup || false,
+      isPublic: contact.isPublic || false,
+      isAdmin: contact.isAdmin || false,
+    });
+
+    // Load messages for this contact
+    loadMessagesForChat(contact.id);
+  };
+
+  // Function to load messages for a specific chat
+  const loadMessagesForChat = (chatId) => {
+    const demoMessages = {
+      "private-1": [
+        {
+          id: "1-abc123",
+          text: "ሰላም! እንዴት ነህ? 🇪🇹 ዛሬ እንዴት አለህ?",
+          time: "10:30 AM",
+          sender: "them",
+          status: "read",
+          canEdit: false,
+          reactions: { "😂": 1, "❤️": 1 },
+        },
+        {
+          id: "2-def456",
+          text: "ደህና ነኝ! አመሰግናለሁ 🇪🇹 አንተስ?",
+          time: "10:31 AM",
+          sender: "me",
+          status: "read",
+          canEdit: true,
+          reactions: { "👍": 2 },
+        },
+      ],
+      "private-2": [
+        {
+          id: "3-ghi789",
+          text: "መልካም ቀን! ትናንት ምን አደረግክ?",
+          time: "9:15 AM",
+          sender: "them",
+          status: "read",
+          canEdit: false,
+        },
+      ],
+      "group-1": [
+        {
+          id: "4-jkl012",
+          text: "Welcome to Ethiogram! 🇪🇹",
+          time: "Yesterday",
+          sender: "system",
+          status: "read",
+          canEdit: false,
+          isAnnouncement: true,
+        },
+      ],
+    };
+
+    setMessages(demoMessages[chatId] || []);
+  };
+
+  // ==================== SOCKET FUNCTIONS ====================
+
+  const setupSocketListeners = (socket) => {
     // Listen for incoming messages
     socket.on("receive_message", (newMessage) => {
       setMessages((prev) => [
@@ -210,12 +431,10 @@ export default function Home() {
 
     socket.on("user_joined_group", ({ groupId, user }) => {
       console.log(`${user.name} joined group ${groupId}`);
-      // Update group members count
     });
 
     socket.on("user_left_group", ({ groupId, user }) => {
       console.log(`${user.name} left group ${groupId}`);
-      // Update group members count
     });
 
     socket.on("group_updated", (updatedGroup) => {
@@ -249,15 +468,31 @@ export default function Home() {
       }
     });
 
-    // Join active chat
-    socket.emit("join_chat", activeChat.id);
+    // Listen for typing indicators
+    socket.on("user_typing", ({ userId, userName, isTyping }) => {
+      setTypingUsers((prev) => {
+        if (isTyping) {
+          return [
+            ...prev.filter((u) => u.id !== userId),
+            { id: userId, name: userName },
+          ];
+        } else {
+          return prev.filter((u) => u.id !== userId);
+        }
+      });
+    });
 
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, [activeChat.id]);
+    // Listen for user status changes
+    socket.on("user_online", (user) => {
+      console.log(`${user.name} came online`);
+    });
+
+    socket.on("user_offline", (user) => {
+      console.log(`${user.name} went offline`);
+    });
+  };
+
+  // ==================== CHAT FUNCTIONS ====================
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -444,7 +679,8 @@ export default function Home() {
     setReplyingTo(null);
   };
 
-  // Group management functions
+  // ==================== GROUP MANAGEMENT FUNCTIONS ====================
+
   const handleCreateGroup = (groupData) => {
     const newGroup = {
       id: generateUniqueId(),
@@ -475,7 +711,6 @@ export default function Home() {
         members: selectedMembers,
       });
 
-      // Update local state
       const updatedGroup = {
         ...activeChat,
         members: activeChat.members + selectedMembers.length,
@@ -524,11 +759,11 @@ export default function Home() {
 
   const selectChat = (chat) => {
     setActiveChat(chat);
-    setMessages([]); // Clear messages for demo
+    setMessages([]);
     setShowGroupInfo(false);
   };
 
-  if (!isClient) {
+  if (!isClient || isLoading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         Loading Ethiogram...
@@ -542,22 +777,48 @@ export default function Home() {
       <header className="bg-gradient-to-r from-ethio-green via-ethio-yellow to-ethio-red text-white p-4 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-              <span className="text-3xl">🇪🇹</span>
+            <div
+              className="w-12 h-12 bg-white rounded-full flex items-center justify-center cursor-pointer hover:opacity-90"
+              onClick={() => currentUser && setShowProfileModal(true)}
+            >
+              <span className="text-3xl">{currentUser?.avatar || "🇪🇹"}</span>
             </div>
             <div>
               <h1 className="text-2xl font-bold">Ethiogram</h1>
-              <p className="text-sm opacity-90">ኢትዮጵያዊ የመልእክት መረብ</p>
+              <p className="text-sm opacity-90">
+                {currentUser
+                  ? `Welcome, ${currentUser.name}`
+                  : "ኢትዮጵያዊ የመልእክት መረብ"}
+              </p>
             </div>
           </div>
+
           <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowCreateGroup(true)}
-              className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full hover:bg-white/30 transition-colors"
-            >
-              <FiPlus className="w-4 h-4" />
-              <span>Create Group</span>
-            </button>
+            {currentUser ? (
+              <>
+                <button
+                  onClick={() => setShowCreateGroup(true)}
+                  className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full hover:bg-white/30 transition-colors"
+                >
+                  <FiPlus className="w-4 h-4" />
+                  <span>Create Group</span>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full hover:bg-white/30 transition-colors"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full hover:bg-white/30 transition-colors"
+              >
+                Login / Signup
+              </button>
+            )}
+
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
@@ -600,8 +861,15 @@ export default function Home() {
                       .map((group) => (
                         <div key={group.id} className="contact-item">
                           <ContactItem
-                            {...group}
-                            onClick={() => selectChat(group)}
+                            id={group.id}
+                            name={group.name}
+                            lastMessage={group.lastMessage}
+                            time={group.time}
+                            unread={group.unread}
+                            isOnline={group.isOnline}
+                            isGroup={true}
+                            groupMembers={group.members}
+                            onClick={handleContactClick}
                             isActive={activeChat.id === group.id}
                           />
                         </div>
@@ -609,19 +877,25 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* All Groups */}
+                {/* All Contacts & Groups */}
                 <div>
                   <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">
-                    👥 Groups ({groups.length})
+                    👥 All Chats
                   </h3>
                   <div className="space-y-1">
-                    {groups.map((group) => (
-                      <div key={group.id} className="contact-item">
+                    {contacts.map((contact) => (
+                      <div key={contact.id} className="contact-item">
                         <ContactItem
-                          {...group}
-                          onClick={() => selectChat(group)}
-                          isActive={activeChat.id === group.id}
-                          showMuteIndicator={true}
+                          id={contact.id}
+                          name={contact.name}
+                          lastMessage={contact.lastMessage}
+                          time={contact.time}
+                          unread={contact.unread}
+                          isOnline={contact.isOnline}
+                          isGroup={contact.isGroup}
+                          groupMembers={contact.groupMembers}
+                          onClick={handleContactClick}
+                          isActive={activeChat.id === contact.id}
                         />
                       </div>
                     ))}
@@ -632,10 +906,10 @@ export default function Home() {
               <div className="mt-auto p-4 border-t">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-ethio-yellow to-ethio-red rounded-full flex items-center justify-center text-white font-bold">
-                    እ
+                    {currentUser?.name?.charAt(0) || "እ"}
                   </div>
                   <div>
-                    <p className="font-medium">እርስዎ</p>
+                    <p className="font-medium">{currentUser?.name || "እርስዎ"}</p>
                     <p className="text-xs text-green-600 flex items-center">
                       <FaRegCircle className="w-2 h-2 mr-1" />
                       በመስመር ላይ
@@ -654,7 +928,9 @@ export default function Home() {
                     <div className="w-12 h-12 bg-gradient-to-br from-ethio-green to-ethio-blue rounded-full flex items-center justify-center text-white font-bold text-xl">
                       {activeChat.avatar || "👥"}
                     </div>
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                    {activeChat.type !== "group" && activeChat.isOnline && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
@@ -710,7 +986,11 @@ export default function Home() {
                         </>
                       ) : (
                         <span className="text-green-600">
-                          {typingUsers.length > 0 ? "Typing..." : "በመስመር ላይ"}
+                          {typingUsers.length > 0
+                            ? "Typing..."
+                            : activeChat.isOnline
+                            ? "በመስመር ላይ"
+                            : "Offline"}
                         </span>
                       )}
                     </p>
@@ -742,12 +1022,16 @@ export default function Home() {
                       </button>
                     </>
                   )}
-                  <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                    <FiPhone className="w-5 h-5" />
-                  </button>
-                  <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                    <FiVideo className="w-5 h-5" />
-                  </button>
+                  {activeChat.type !== "group" && (
+                    <>
+                      <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                        <FiPhone className="w-5 h-5" />
+                      </button>
+                      <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                        <FiVideo className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
                   <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                     <FiMoreVertical className="w-5 h-5" />
                   </button>
@@ -815,6 +1099,9 @@ export default function Home() {
                           )
                         }
                         isAnnouncement={msg.isAnnouncement}
+                        senderName={msg.senderName}
+                        isGroupChat={activeChat.type === "group"}
+                        isAdminMessage={msg.senderId === activeChat.admin}
                       />
 
                       {/* Quick Reactions Menu */}
@@ -1026,6 +1313,21 @@ export default function Home() {
           onClose={() => setShowGroupSettings(false)}
           onSave={handleGroupSettingsUpdate}
           group={activeChat}
+        />
+
+        {/* Auth and Profile Modals */}
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => currentUser && setShowAuthModal(false)}
+          onLogin={handleLogin}
+          onSignup={handleSignup}
+        />
+
+        <UserProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          user={currentUser}
+          onUpdate={handleProfileUpdate}
         />
 
         {/* Stats Footer */}

@@ -1,51 +1,50 @@
 "use client";
 
-import {
-  FiX,
-  FiUsers,
-  FiCalendar,
-  FiLock,
-  FiGlobe,
-  FiBell,
-  FiArchive,
-  FiLogOut,
-  FiShield,
-} from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { FiX, FiGlobe, FiLock, FiShield, FiBell } from "react-icons/fi";
 
-export default function GroupInfoSidebar({
-  group,
-  onClose,
-  onLeave,
-  onMute,
-  onPin,
-}) {
-  const members = [
-    { id: 1, name: "You", role: "admin", isOnline: true, avatar: "እ" },
-    { id: 2, name: "Abebe Bekele", role: "admin", isOnline: true, avatar: "A" },
-    {
-      id: 3,
-      name: "Tigist Worku",
-      role: "member",
-      isOnline: true,
-      avatar: "T",
-    },
-    {
-      id: 4,
-      name: "Kaleb Getachew",
-      role: "member",
-      isOnline: false,
-      avatar: "K",
-    },
-    { id: 5, name: "Meron Abebe", role: "member", isOnline: true, avatar: "M" },
-  ];
+export default function GroupSettingsModal({ isOpen, onClose, onSave, group }) {
+  const [settings, setSettings] = useState({
+    name: "",
+    description: "",
+    isPublic: true,
+    allowInvites: true,
+    allowPinnedMessages: true,
+    allowReactions: true,
+    slowMode: false,
+    slowModeDuration: 5,
+    announcementOnly: false,
+  });
+
+  useEffect(() => {
+    if (group) {
+      setSettings({
+        name: group.name || "",
+        description: group.description || "",
+        isPublic: group.isPublic || true,
+        allowInvites: true,
+        allowPinnedMessages: true,
+        allowReactions: true,
+        slowMode: false,
+        slowModeDuration: 5,
+        announcementOnly: false,
+      });
+    }
+  }, [group]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(settings);
+  };
 
   return (
-    <div className="absolute right-0 top-0 bottom-0 w-80 bg-white border-l shadow-lg z-40">
-      <div className="h-full overflow-y-auto">
-        {/* Header */}
-        <div className="p-4 border-b">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-800">Group Info</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl w-full max-w-md mx-4">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-gray-800">Group Settings</h2>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-full"
@@ -54,141 +53,158 @@ export default function GroupInfoSidebar({
             </button>
           </div>
 
-          {/* Group Info */}
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-ethio-green to-ethio-blue rounded-full flex items-center justify-center text-white text-3xl mb-3">
-              {group.avatar || "👥"}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Group Name
+              </label>
+              <input
+                type="text"
+                value={settings.name}
+                onChange={(e) =>
+                  setSettings({ ...settings, name: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-primary"
+                placeholder="Enter group name"
+                required
+              />
             </div>
-            <h3 className="text-xl font-bold">{group.name}</h3>
-            <p className="text-gray-600 text-sm mt-1">{group.description}</p>
-            <div className="flex items-center space-x-2 mt-2">
-              {group.isPublic ? (
-                <>
-                  <FiGlobe className="w-4 h-4 text-green-500" />
-                  <span className="text-sm text-gray-500">Public Group</span>
-                </>
-              ) : (
-                <>
-                  <FiLock className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm text-gray-500">Private Group</span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
 
-        {/* Stats */}
-        <div className="p-4 border-b">
-          <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-gray-800">
-                {group.members}
-              </p>
-              <p className="text-xs text-gray-500">Members</p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                value={settings.description}
+                onChange={(e) =>
+                  setSettings({ ...settings, description: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-primary"
+                placeholder="Group description"
+                rows="3"
+              />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">127</p>
-              <p className="text-xs text-gray-500">Messages</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">5</p>
-              <p className="text-xs text-gray-500">Online</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Members List */}
-        <div className="p-4 border-b">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-medium text-gray-700">Members</h3>
-            <span className="text-sm text-gray-500">
-              {members.length}/{group.members}
-            </span>
-          </div>
-          <div className="space-y-2">
-            {members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="relative">
-                    <div className="w-10 h-10 bg-gradient-to-br from-ethio-yellow to-ethio-red rounded-full flex items-center justify-center text-white font-bold">
-                      {member.avatar}
-                    </div>
-                    {member.isOnline && (
-                      <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full border border-white"></div>
-                    )}
-                  </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {settings.isPublic ? (
+                    <FiGlobe className="w-5 h-5 text-green-500" />
+                  ) : (
+                    <FiLock className="w-5 h-5 text-blue-500" />
+                  )}
                   <div>
-                    <p className="font-medium">{member.name}</p>
-                    <p className="text-xs text-gray-500 flex items-center">
-                      {member.role === "admin" && (
-                        <FiShield className="w-3 h-3 mr-1 text-blue-500" />
-                      )}
-                      {member.role}
+                    <p className="font-medium">Group Type</p>
+                    <p className="text-sm text-gray-500">
+                      {settings.isPublic
+                        ? "Public - Anyone can join"
+                        : "Private - Invite only"}
                     </p>
                   </div>
                 </div>
-                <span className="text-xs text-gray-500">
-                  {member.isOnline ? "Online" : "Last seen 2h ago"}
-                </span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.isPublic}
+                    onChange={(e) =>
+                      setSettings({ ...settings, isPublic: e.target.checked })
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-telegram-primary"></div>
+                </label>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Group Actions */}
-        <div className="p-4">
-          <h3 className="font-medium text-gray-700 mb-3">Group Actions</h3>
-          <div className="space-y-1">
-            <button
-              onClick={onMute}
-              className="flex items-center justify-between w-full p-3 hover:bg-gray-50 rounded-lg text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <FiBell
-                  className={`w-5 h-5 ${
-                    group.muted ? "text-red-500" : "text-gray-500"
-                  }`}
-                />
-                <span>
-                  {group.muted ? "Unmute Notifications" : "Mute Notifications"}
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FiShield className="w-5 h-5 text-purple-500" />
+                  <div>
+                    <p className="font-medium">Admin Only</p>
+                    <p className="text-sm text-gray-500">
+                      Only admins can send messages
+                    </p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.announcementOnly}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        announcementOnly: e.target.checked,
+                      })
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                </label>
               </div>
-            </button>
 
-            <button
-              onClick={onPin}
-              className="flex items-center justify-between w-full p-3 hover:bg-gray-50 rounded-lg text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <FiArchive
-                  className={`w-5 h-5 ${
-                    group.pinned ? "text-yellow-500" : "text-gray-500"
-                  }`}
-                />
-                <span>{group.pinned ? "Unpin Chat" : "Pin Chat"}</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FiBell className="w-5 h-5 text-yellow-500" />
+                  <div>
+                    <p className="font-medium">Slow Mode</p>
+                    <p className="text-sm text-gray-500">
+                      Limit how often users can post
+                    </p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.slowMode}
+                    onChange={(e) =>
+                      setSettings({ ...settings, slowMode: e.target.checked })
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+                </label>
               </div>
-            </button>
 
-            <button className="flex items-center justify-between w-full p-3 hover:bg-gray-50 rounded-lg text-left text-red-600">
-              <div className="flex items-center space-x-3">
-                <FiLogOut className="w-5 h-5" />
-                <span>Leave Group</span>
-              </div>
-            </button>
-          </div>
-        </div>
+              {settings.slowMode && (
+                <div className="ml-7">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Delay between messages (seconds)
+                  </label>
+                  <select
+                    value={settings.slowModeDuration}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        slowModeDuration: parseInt(e.target.value),
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-telegram-primary"
+                  >
+                    <option value="5">5 seconds</option>
+                    <option value="10">10 seconds</option>
+                    <option value="30">30 seconds</option>
+                    <option value="60">1 minute</option>
+                    <option value="300">5 minutes</option>
+                  </select>
+                </div>
+              )}
+            </div>
 
-        {/* Group Info Footer */}
-        <div className="p-4 border-t">
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
-            <FiCalendar className="w-4 h-4" />
-            <span>
-              Created on {new Date(group.createdAt).toLocaleDateString()}
-            </span>
-          </div>
+            <div className="pt-4 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-telegram-primary text-white rounded-lg hover:bg-blue-600"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
