@@ -11,14 +11,21 @@ import {
   FiPaperclip,
   FiSend,
   FiX,
-  FiImage,
-  FiFileText,
-  FiMusic,
+  FiUsers,
+  FiPlus,
+  FiSettings,
+  FiLock,
+  FiGlobe,
+  FiUserPlus,
+  FiShield,
+  FiBell,
+  FiArchive,
+  FiLogOut,
 } from "react-icons/fi";
 import { FaRegCircle } from "react-icons/fa";
 import dynamic from "next/dynamic";
 
-// Dynamically import EmojiPicker to avoid SSR issues
+// Dynamically import EmojiPicker
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
   loading: () => <p className="p-4">Loading emojis...</p>,
@@ -28,41 +35,22 @@ const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
 import ChatBubble from "@/components/ChatBubble";
 import ContactItem from "@/components/ContactItem";
 import FileUpload from "@/components/FileUpload";
-import { MdAudiotrack } from "react-icons/md";
-
 import VoiceRecorder from "@/components/VoiceRecorder";
 import { FaMicrophone } from "react-icons/fa";
-// Add this line with your other imports
 import EthiopianDateDisplay from "@/components/EthiopianDateDisplay";
+import GroupSettingsModal from "@/components/GroupSettingsModal";
+import CreateGroupModal from "@/components/CreateGroupModal";
+import AddMembersModal from "@/components/AddMembersModal";
+import GroupInfoSidebar from "@/components/GroupInfoSidebar";
+
 export default function Home() {
-  // Fix 1: Add client check for hydration
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      id: "1-abc123",
-      text: "ሰላም! እንዴት ነህ? 🇪🇹 ዛሬ እንዴት አለህ?",
-      time: "10:30 AM",
-      sender: "them",
-      status: "read",
-      canEdit: false,
-      reactions: { "😂": 1, "❤️": 1 },
-    },
-    {
-      id: "2-def456",
-      text: "ደህና ነኝ! አመሰግናለሁ 🇪🇹 አንተስ?",
-      time: "10:31 AM",
-      sender: "me",
-      status: "read",
-      canEdit: true,
-      reactions: { "👍": 2 },
-    },
-  ]);
-
+  const [messages, setMessages] = useState([]);
   const [editingMessage, setEditingMessage] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -70,31 +58,120 @@ export default function Home() {
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
-  const [typingUsers, setTypingUsers] = useState([]); // For typing indicator UI
+  const [typingUsers, setTypingUsers] = useState([]);
+
+  // Group chat states
+  const [activeChat, setActiveChat] = useState({
+    id: "ethiogram-main",
+    type: "group", // 'group' or 'private'
+    name: "Ethiogram Main Group",
+    description: "Main public group for all Ethiogram users",
+    members: 127,
+    isOnline: true,
+    isAdmin: true,
+    isPublic: true,
+    createdAt: "2024-01-01",
+  });
+
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showAddMembers, setShowAddMembers] = useState(false);
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
 
   const emojiPickerRef = useRef(null);
   const inputRef = useRef(null);
   const socketRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Fix 2: Better unique ID generator
+  // Sample groups data
+  const [groups, setGroups] = useState([
+    {
+      id: "group-1",
+      name: "Ethiogram Main",
+      type: "group",
+      description: "Main public group for all users",
+      lastMessage: "Welcome to Ethiogram! 🇪🇹",
+      time: "2 min",
+      unread: 3,
+      members: 127,
+      isOnline: true,
+      isPublic: true,
+      isAdmin: true,
+      avatar: "🇪🇹",
+      pinned: true,
+      muted: false,
+    },
+    {
+      id: "group-2",
+      name: "Addis Tech Hub",
+      type: "group",
+      description: "Ethiopian developers community",
+      lastMessage: "ሰላም ወንድሞች! 🚀",
+      time: "1 hr",
+      unread: 12,
+      members: 45,
+      isOnline: true,
+      isPublic: true,
+      isAdmin: false,
+      avatar: "💻",
+      pinned: true,
+      muted: true,
+    },
+    {
+      id: "group-3",
+      name: "Family Group",
+      type: "group",
+      description: "Family announcements and updates",
+      lastMessage: "ቤተክርስቲያን እንደምን ነው?",
+      time: "ትላንት",
+      unread: 0,
+      members: 8,
+      isOnline: true,
+      isPublic: false,
+      isAdmin: true,
+      avatar: "👨‍👩‍👧‍👦",
+      pinned: false,
+      muted: false,
+    },
+    {
+      id: "group-4",
+      name: "Work Team",
+      type: "group",
+      description: "Office coordination and updates",
+      lastMessage: "Meeting at 2 PM tomorrow",
+      time: "3 hr",
+      unread: 5,
+      members: 15,
+      isOnline: false,
+      isPublic: false,
+      isAdmin: true,
+      avatar: "💼",
+      pinned: false,
+      muted: false,
+    },
+  ]);
+
+  // Sample contacts for adding to groups
+  const [allContacts, setAllContacts] = useState([
+    { id: "user-1", name: "Abebe Bekele", isOnline: true, avatar: "A" },
+    { id: "user-2", name: "Tigist Worku", isOnline: true, avatar: "T" },
+    { id: "user-3", name: "Kaleb Getachew", isOnline: false, avatar: "K" },
+    { id: "user-4", name: "Meron Abebe", isOnline: true, avatar: "M" },
+    { id: "user-5", name: "Dawit Alemu", isOnline: true, avatar: "D" },
+    { id: "user-6", name: "Selamawit Tesfaye", isOnline: false, avatar: "S" },
+  ]);
+
   const generateUniqueId = () => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  const formatFileSize = (bytes) => {
-    if (!bytes) return "0 B";
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  };
-
-  // Connect to socket server
+  // Socket connection with group support
   useEffect(() => {
-    // Connect to socket server with user data
     const socket = socketService.connect({
       name: "You",
       avatar: "🇪🇹",
+      userId: generateUniqueId(),
     });
 
     socketRef.current = socket;
@@ -117,6 +194,7 @@ export default function Home() {
           canEdit: newMessage.senderId === socket.id,
           isFile: newMessage.isFile,
           isVoice: newMessage.isVoice,
+          isAnnouncement: newMessage.isAnnouncement,
           fileData: newMessage.fileData,
           voiceData: newMessage.voiceData,
           timestamp: newMessage.timestamp,
@@ -124,82 +202,62 @@ export default function Home() {
       ]);
     });
 
-    // Listen for online users
-    socket.on("online_users", (users) => {
-      console.log("Online users:", users);
+    // Listen for group events
+    socket.on("group_created", (group) => {
+      console.log("New group created:", group);
+      setGroups((prev) => [group, ...prev]);
     });
 
-    // Listen for typing indicators
-    socket.on("user_typing", ({ userId, userName, isTyping }) => {
-      console.log(`${userName} is ${isTyping ? "typing..." : "not typing"}`);
-      setTypingUsers((prev) => {
-        if (isTyping) {
-          // Add user to typing list
-          return [
-            ...prev.filter((u) => u.id !== userId),
-            { id: userId, name: userName },
-          ];
-        } else {
-          // Remove user from typing list
-          return prev.filter((u) => u.id !== userId);
-        }
-      });
+    socket.on("user_joined_group", ({ groupId, user }) => {
+      console.log(`${user.name} joined group ${groupId}`);
+      // Update group members count
     });
 
-    // Listen for user status changes
-    socket.on("user_online", (user) => {
-      console.log(`${user.name} came online`);
+    socket.on("user_left_group", ({ groupId, user }) => {
+      console.log(`${user.name} left group ${groupId}`);
+      // Update group members count
     });
 
-    socket.on("user_offline", (user) => {
-      console.log(`${user.name} went offline`);
+    socket.on("group_updated", (updatedGroup) => {
+      console.log("Group updated:", updatedGroup);
+      setGroups((prev) =>
+        prev.map((group) =>
+          group.id === updatedGroup.id ? updatedGroup : group
+        )
+      );
+      if (activeChat.id === updatedGroup.id) {
+        setActiveChat(updatedGroup);
+      }
     });
 
-    // Join the main chat room
-    socket.emit("join_chat", "ethiogram-main");
+    socket.on("announcement", ({ groupId, message, adminName }) => {
+      if (activeChat.id === groupId) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: generateUniqueId(),
+            text: `📢 ${adminName}: ${message}`,
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            sender: "system",
+            isAnnouncement: true,
+            status: "read",
+          },
+        ]);
+      }
+    });
 
-    // Cleanup on unmount
+    // Join active chat
+    socket.emit("join_chat", activeChat.id);
+
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
     };
-  }, []);
-
-  const contacts = [
-    {
-      id: 1,
-      name: "Abebe Bekele",
-      lastMessage: "ሰላም! እንዴት ነህ?",
-      time: "2 min",
-      unread: 2,
-      isOnline: true,
-    },
-    {
-      id: 2,
-      name: "Tigist Worku",
-      lastMessage: "መልካም ቀን!",
-      time: "1 hr",
-      unread: 0,
-      isOnline: true,
-    },
-    {
-      id: 3,
-      name: "Kaleb Getachew",
-      lastMessage: "ነገ ስለስብሰባው",
-      time: "3 hr",
-      unread: 5,
-      isOnline: false,
-    },
-    {
-      id: 4,
-      name: "Meron Abebe",
-      lastMessage: "ቤተክርስቲያን እንደምን ነው?",
-      time: "ትላንት",
-      unread: 0,
-      isOnline: true,
-    },
-  ];
+  }, [activeChat.id]);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -216,7 +274,6 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Emoji handler
   const handleEmojiClick = (emojiData) => {
     setMessage((prev) => prev + emojiData.emoji);
     if (inputRef.current) {
@@ -225,7 +282,6 @@ export default function Home() {
   };
 
   const handleFilesSelected = (files) => {
-    // Convert files to messages
     const fileMessages = files.map((fileObj, index) => ({
       id: generateUniqueId(),
       text: `📎 ${fileObj.name}`,
@@ -248,7 +304,6 @@ export default function Home() {
     setShowFileUpload(false);
   };
 
-  // Add reaction to message
   const addReaction = (messageId, emoji) => {
     setMessages((prevMessages) =>
       prevMessages.map((msg) => {
@@ -269,25 +324,22 @@ export default function Home() {
     setActiveReactionMenu(null);
   };
 
-  // Quick reactions
   const quickReactions = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
-  // Message handling functions
   const handleSend = () => {
     if (message.trim() && socketRef.current) {
       const messageData = {
         text: replyingTo
           ? `Replying to: ${replyingTo.text}\n${message}`
           : message,
-        chatId: "ethiogram-main",
+        chatId: activeChat.id,
         isFile: false,
         isVoice: false,
+        isAnnouncement: false,
       };
 
-      // Send via socket
       socketRef.current.emit("send_message", messageData);
 
-      // Also add to local state for immediate UI update
       const newMessage = {
         id: generateUniqueId(),
         text: messageData.text,
@@ -300,6 +352,7 @@ export default function Home() {
         canEdit: true,
         isFile: false,
         isVoice: false,
+        isAnnouncement: false,
       };
 
       setMessages((prev) => [...prev, newMessage]);
@@ -307,8 +360,35 @@ export default function Home() {
       setReplyingTo(null);
       setShowEmojiPicker(false);
 
-      // Stop typing indicator
-      socketRef.current.emit("stop_typing", "ethiogram-main");
+      socketRef.current.emit("stop_typing", activeChat.id);
+    }
+  };
+
+  const sendAnnouncement = () => {
+    if (message.trim() && socketRef.current && activeChat.isAdmin) {
+      const announcementData = {
+        text: message,
+        chatId: activeChat.id,
+        isAnnouncement: true,
+      };
+
+      socketRef.current.emit("send_announcement", announcementData);
+
+      const newMessage = {
+        id: generateUniqueId(),
+        text: `📢 Announcement: ${message}`,
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        sender: "me",
+        status: "sent",
+        canEdit: true,
+        isAnnouncement: true,
+      };
+
+      setMessages((prev) => [...prev, newMessage]);
+      setMessage("");
     }
   };
 
@@ -364,7 +444,90 @@ export default function Home() {
     setReplyingTo(null);
   };
 
-  // Don't render anything until client-side
+  // Group management functions
+  const handleCreateGroup = (groupData) => {
+    const newGroup = {
+      id: generateUniqueId(),
+      ...groupData,
+      lastMessage: "Group created",
+      time: "now",
+      unread: 0,
+      members: groupData.members.length,
+      isOnline: true,
+      isAdmin: true,
+      pinned: false,
+      muted: false,
+    };
+
+    if (socketRef.current) {
+      socketRef.current.emit("create_group", newGroup);
+    }
+
+    setGroups([newGroup, ...groups]);
+    setActiveChat(newGroup);
+    setShowCreateGroup(false);
+  };
+
+  const handleAddMembers = (selectedMembers) => {
+    if (socketRef.current && activeChat) {
+      socketRef.current.emit("add_members", {
+        groupId: activeChat.id,
+        members: selectedMembers,
+      });
+
+      // Update local state
+      const updatedGroup = {
+        ...activeChat,
+        members: activeChat.members + selectedMembers.length,
+      };
+      setActiveChat(updatedGroup);
+      setGroups((prev) =>
+        prev.map((group) => (group.id === activeChat.id ? updatedGroup : group))
+      );
+    }
+    setShowAddMembers(false);
+  };
+
+  const handleLeaveGroup = (groupId) => {
+    if (socketRef.current) {
+      socketRef.current.emit("leave_group", groupId);
+      setGroups((prev) => prev.filter((group) => group.id !== groupId));
+      if (activeChat.id === groupId) {
+        setActiveChat(groups.find((g) => g.id !== groupId) || groups[0]);
+      }
+    }
+  };
+
+  const handleMuteGroup = (groupId, muted) => {
+    setGroups((prev) =>
+      prev.map((group) => (group.id === groupId ? { ...group, muted } : group))
+    );
+  };
+
+  const handlePinGroup = (groupId, pinned) => {
+    setGroups((prev) =>
+      prev.map((group) => (group.id === groupId ? { ...group, pinned } : group))
+    );
+  };
+
+  const handleGroupSettingsUpdate = (updatedSettings) => {
+    const updatedGroup = { ...activeChat, ...updatedSettings };
+    if (socketRef.current) {
+      socketRef.current.emit("update_group", updatedGroup);
+    }
+    setActiveChat(updatedGroup);
+    setGroups((prev) =>
+      prev.map((group) => (group.id === activeChat.id ? updatedGroup : group))
+    );
+    setShowGroupSettings(false);
+  };
+
+  const selectChat = (chat) => {
+    setActiveChat(chat);
+    setMessages([]); // Clear messages for demo
+    setShowGroupInfo(false);
+  };
+
   if (!isClient) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -388,6 +551,13 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowCreateGroup(true)}
+              className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full hover:bg-white/30 transition-colors"
+            >
+              <FiPlus className="w-4 h-4" />
+              <span>Create Group</span>
+            </button>
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
@@ -406,13 +576,56 @@ export default function Home() {
             {/* Sidebar */}
             <div className="w-1/4 border-r bg-gray-50 flex flex-col">
               <div className="p-4">
-                <h2 className="font-semibold text-gray-700 mb-4">ውይይቶች</h2>
-                <div className="space-y-1">
-                  {contacts.map((contact) => (
-                    <div key={contact.id} className="contact-item">
-                      <ContactItem {...contact} />
-                    </div>
-                  ))}
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="font-semibold text-gray-700">ውይይቶች</h2>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setShowCreateGroup(true)}
+                      className="p-2 hover:bg-gray-200 rounded-full"
+                      title="Create group"
+                    >
+                      <FiUsers className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Pinned Groups */}
+                <div className="mb-4">
+                  <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">
+                    📌 Pinned
+                  </h3>
+                  <div className="space-y-1">
+                    {groups
+                      .filter((group) => group.pinned)
+                      .map((group) => (
+                        <div key={group.id} className="contact-item">
+                          <ContactItem
+                            {...group}
+                            onClick={() => selectChat(group)}
+                            isActive={activeChat.id === group.id}
+                          />
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* All Groups */}
+                <div>
+                  <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">
+                    👥 Groups ({groups.length})
+                  </h3>
+                  <div className="space-y-1">
+                    {groups.map((group) => (
+                      <div key={group.id} className="contact-item">
+                        <ContactItem
+                          {...group}
+                          onClick={() => selectChat(group)}
+                          isActive={activeChat.id === group.id}
+                          showMuteIndicator={true}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -439,32 +652,96 @@ export default function Home() {
                 <div className="flex items-center space-x-3">
                   <div className="relative">
                     <div className="w-12 h-12 bg-gradient-to-br from-ethio-green to-ethio-blue rounded-full flex items-center justify-center text-white font-bold text-xl">
-                      አ
+                      {activeChat.avatar || "👥"}
                     </div>
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                   </div>
                   <div>
-                    <h2 className="font-bold text-lg">Abebe Bekele</h2>
-                    <p className="text-sm text-green-600">
-                      {typingUsers.length > 0 ? (
-                        <span className="flex items-center">
-                          <span className="mr-2">
-                            {typingUsers.map((u) => u.name).join(", ")}{" "}
-                            {typingUsers.length === 1 ? "is" : "are"} typing
+                    <div className="flex items-center space-x-2">
+                      <h2 className="font-bold text-lg">{activeChat.name}</h2>
+                      {activeChat.type === "group" && (
+                        <>
+                          {activeChat.isPublic ? (
+                            <FiGlobe
+                              className="w-4 h-4 text-gray-500"
+                              title="Public group"
+                            />
+                          ) : (
+                            <FiLock
+                              className="w-4 h-4 text-gray-500"
+                              title="Private group"
+                            />
+                          )}
+                          {activeChat.isAdmin && (
+                            <FiShield
+                              className="w-4 h-4 text-blue-500"
+                              title="Admin"
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {activeChat.type === "group" ? (
+                        <>
+                          <span className="text-green-600">
+                            {typingUsers.length > 0 ? (
+                              <span className="flex items-center">
+                                <span className="mr-2">
+                                  {typingUsers.map((u) => u.name).join(", ")}{" "}
+                                  {typingUsers.length === 1 ? "is" : "are"}{" "}
+                                  typing
+                                </span>
+                                <span className="flex">
+                                  <span className="typing-dot w-1 h-1 bg-green-600 rounded-full mx-0.5"></span>
+                                  <span className="typing-dot w-1 h-1 bg-green-600 rounded-full mx-0.5"></span>
+                                  <span className="typing-dot w-1 h-1 bg-green-600 rounded-full mx-0.5"></span>
+                                </span>
+                              </span>
+                            ) : (
+                              `${activeChat.members} አባላት`
+                            )}
                           </span>
-                          <span className="flex">
-                            <span className="typing-dot w-1 h-1 bg-green-600 rounded-full mx-0.5"></span>
-                            <span className="typing-dot w-1 h-1 bg-green-600 rounded-full mx-0.5"></span>
-                            <span className="typing-dot w-1 h-1 bg-green-600 rounded-full mx-0.5"></span>
-                          </span>
-                        </span>
+                          {activeChat.description && (
+                            <span className="ml-2">
+                              • {activeChat.description}
+                            </span>
+                          )}
+                        </>
                       ) : (
-                        "በመስመር ላይ"
+                        <span className="text-green-600">
+                          {typingUsers.length > 0 ? "Typing..." : "በመስመር ላይ"}
+                        </span>
                       )}
                     </p>
                   </div>
                 </div>
                 <div className="flex space-x-2">
+                  {activeChat.type === "group" && (
+                    <>
+                      <button
+                        onClick={() => setShowAddMembers(true)}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        title="Add members"
+                      >
+                        <FiUserPlus className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setShowGroupSettings(true)}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        title="Group settings"
+                      >
+                        <FiSettings className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setShowGroupInfo(!showGroupInfo)}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        title="Group info"
+                      >
+                        <FiUsers className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
                   <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                     <FiPhone className="w-5 h-5" />
                   </button>
@@ -476,10 +753,21 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              {/* Add this in your Chat Area, before messages */}
-              <div className="p-4 border-b">
-                <EthiopianDateDisplay />
-              </div>
+
+              {/* Add Group Info Sidebar */}
+              {showGroupInfo && activeChat.type === "group" && (
+                <GroupInfoSidebar
+                  group={activeChat}
+                  onClose={() => setShowGroupInfo(false)}
+                  onLeave={() => handleLeaveGroup(activeChat.id)}
+                  onMute={() =>
+                    handleMuteGroup(activeChat.id, !activeChat.muted)
+                  }
+                  onPin={() =>
+                    handlePinGroup(activeChat.id, !activeChat.pinned)
+                  }
+                />
+              )}
 
               {/* Messages Area */}
               <div className="flex-1 p-6 overflow-y-auto bg-gradient-to-b from-telegram-bg to-white">
@@ -526,6 +814,7 @@ export default function Home() {
                             activeReactionMenu === msg.id ? null : msg.id
                           )
                         }
+                        isAnnouncement={msg.isAnnouncement}
                       />
 
                       {/* Quick Reactions Menu */}
@@ -552,6 +841,19 @@ export default function Home() {
               {/* Message Input Area */}
               <div className="p-4 border-t bg-white relative">
                 <div className="max-w-3xl mx-auto">
+                  {/* Admin announcement button */}
+                  {activeChat.isAdmin && activeChat.type === "group" && (
+                    <div className="mb-2">
+                      <button
+                        onClick={sendAnnouncement}
+                        className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-700"
+                      >
+                        <FiBell className="w-4 h-4" />
+                        <span>Send as announcement</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Edit Mode Banner */}
                   {editingMessage && (
                     <div className="mb-3 p-3 bg-yellow-50 border-l-4 border-yellow-500 rounded">
@@ -600,6 +902,7 @@ export default function Home() {
                       </div>
                     </div>
                   )}
+
                   {showVoiceRecorder && (
                     <div className="absolute bottom-16 left-20 z-50">
                       <VoiceRecorder
@@ -608,6 +911,7 @@ export default function Home() {
                       />
                     </div>
                   )}
+
                   {/* Input Row */}
                   <div className="flex items-center space-x-2">
                     <button
@@ -637,22 +941,18 @@ export default function Home() {
                         value={message}
                         onChange={(e) => {
                           setMessage(e.target.value);
-
-                          // Send typing indicator
                           if (socketRef.current) {
                             if (typingTimeoutRef.current) {
                               clearTimeout(typingTimeoutRef.current);
                             }
-
                             socketRef.current.emit(
                               "start_typing",
-                              "ethiogram-main"
+                              activeChat.id
                             );
-
                             typingTimeoutRef.current = setTimeout(() => {
                               socketRef.current.emit(
                                 "stop_typing",
-                                "ethiogram-main"
+                                activeChat.id
                               );
                             }, 1000);
                           }
@@ -677,6 +977,7 @@ export default function Home() {
                         <FiSmile className="w-5 h-5 text-gray-500" />
                       </button>
                     </div>
+
                     {showFileUpload && (
                       <div className="absolute bottom-16 left-4 z-50">
                         <FileUpload
@@ -704,11 +1005,36 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Modals */}
+        <CreateGroupModal
+          isOpen={showCreateGroup}
+          onClose={() => setShowCreateGroup(false)}
+          onCreate={handleCreateGroup}
+          contacts={allContacts}
+        />
+
+        <AddMembersModal
+          isOpen={showAddMembers}
+          onClose={() => setShowAddMembers(false)}
+          onAdd={handleAddMembers}
+          contacts={allContacts}
+          existingMembers={[]}
+        />
+
+        <GroupSettingsModal
+          isOpen={showGroupSettings}
+          onClose={() => setShowGroupSettings(false)}
+          onSave={handleGroupSettingsUpdate}
+          group={activeChat}
+        />
+
         {/* Stats Footer */}
         <div className="mt-6 text-center text-gray-600 text-sm">
           <p>
-            Ethiogram - <span className="text-ethio-green">3</span> ተጠቃሚዎች በመስመር
-            ላይ | <span className="text-ethio-blue">127</span> መልእክቶች ዛሬ
+            Ethiogram -{" "}
+            <span className="text-ethio-green">{groups.length}</span> ቡድኖች |{" "}
+            <span className="text-ethio-blue">{activeChat.members}</span> አባላት
+            በአሁኑ ቡድን
           </p>
           <p className="mt-1 text-xs">
             © 2024 Ethiogram - ሁሉም መብቶች የተጠበቁ ናቸው 🇪🇹
