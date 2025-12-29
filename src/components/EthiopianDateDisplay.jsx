@@ -2,41 +2,29 @@
 
 import { useState, useEffect } from "react";
 import { FiCalendar, FiGift } from "react-icons/fi";
-
-// Use dynamic import to avoid SSR
-const useEthiopianCalendar = () => {
-  const [calendar, setCalendar] = useState(null);
-
-  useEffect(() => {
-    import("@/lib/ethiopianCalendarClient").then((module) => {
-      setCalendar(module);
-    });
-  }, []);
-
-  return calendar;
-};
+import {
+  getSimpleEthiopianDate,
+  getEthiopianHoliday,
+} from "@/lib/simpleEthiopianCalendar";
 
 const EthiopianDateDisplay = () => {
   const [ethiopianDate, setEthiopianDate] = useState(null);
   const [holiday, setHoliday] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const calendar = useEthiopianCalendar();
 
   useEffect(() => {
-    if (!calendar) return;
-
     const updateDateTime = () => {
       const now = new Date();
       setCurrentTime(now);
-      setEthiopianDate(calendar.convertToEthiopian(now));
-      setHoliday(calendar.getEthiopianHoliday(now));
+      setEthiopianDate(getSimpleEthiopianDate());
+      setHoliday(getEthiopianHoliday());
     };
 
     updateDateTime();
     const interval = setInterval(updateDateTime, 60000);
 
     return () => clearInterval(interval);
-  }, [calendar]);
+  }, []);
 
   const formatEthiopianTime = (date) => {
     const hours = date.getHours();
@@ -47,7 +35,7 @@ const EthiopianDateDisplay = () => {
     return `${ethHours}:${minutes.toString().padStart(2, "0")} ${period}`;
   };
 
-  if (!calendar || !ethiopianDate) {
+  if (!ethiopianDate) {
     return (
       <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
         <div className="flex items-center space-x-3">
