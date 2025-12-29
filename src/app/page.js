@@ -32,7 +32,8 @@ import { MdAudiotrack } from "react-icons/md";
 
 import VoiceRecorder from "@/components/VoiceRecorder";
 import { FaMicrophone } from "react-icons/fa";
-
+// Add this line with your other imports
+import EthiopianDateDisplay from "@/components/EthiopianDateDisplay";
 export default function Home() {
   // Fix 1: Add client check for hydration
   const [isClient, setIsClient] = useState(false);
