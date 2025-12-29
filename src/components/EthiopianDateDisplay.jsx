@@ -1,31 +1,42 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  convertToEthiopian,
-  getEthiopianHoliday,
-  formatEthiopianDate,
-} from "@/lib/ethiopianCalendar";
 import { FiCalendar, FiGift } from "react-icons/fi";
+
+// Use dynamic import to avoid SSR
+const useEthiopianCalendar = () => {
+  const [calendar, setCalendar] = useState(null);
+
+  useEffect(() => {
+    import("@/lib/ethiopianCalendarClient").then((module) => {
+      setCalendar(module);
+    });
+  }, []);
+
+  return calendar;
+};
 
 const EthiopianDateDisplay = () => {
   const [ethiopianDate, setEthiopianDate] = useState(null);
   const [holiday, setHoliday] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const calendar = useEthiopianCalendar();
 
   useEffect(() => {
+    if (!calendar) return;
+
     const updateDateTime = () => {
       const now = new Date();
       setCurrentTime(now);
-      setEthiopianDate(convertToEthiopian(now));
-      setHoliday(getEthiopianHoliday(now));
+      setEthiopianDate(calendar.convertToEthiopian(now));
+      setHoliday(calendar.getEthiopianHoliday(now));
     };
 
     updateDateTime();
-    const interval = setInterval(updateDateTime, 60000); // Update every minute
+    const interval = setInterval(updateDateTime, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [calendar]);
 
   const formatEthiopianTime = (date) => {
     const hours = date.getHours();
@@ -36,7 +47,21 @@ const EthiopianDateDisplay = () => {
     return `${ethHours}:${minutes.toString().padStart(2, "0")} ${period}`;
   };
 
-  if (!ethiopianDate) return null;
+  if (!calendar || !ethiopianDate) {
+    return (
+      <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 rounded-lg bg-gray-200 animate-pulse">
+            <FiCalendar className="w-5 h-5 text-gray-400" />
+          </div>
+          <div className="space-y-2">
+            <div className="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-3 w-24 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
