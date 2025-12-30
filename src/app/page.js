@@ -49,7 +49,7 @@ import GroupInfoSidebar from "@/components/GroupInfoSidebar";
 import AuthModal from "@/components/AuthModal";
 import UserProfileModal from "@/components/UserProfileModal";
 import { auth } from "@/lib/auth";
-
+import AddContactModal from "@/components/AddContactModal";
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,6 +97,7 @@ export default function Home() {
   const inputRef = useRef(null);
   const socketRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const [showAddContact, setShowAddContact] = useState(false);
 
   // Sample groups data
   const [groups, setGroups] = useState([
@@ -290,6 +291,22 @@ export default function Home() {
       console.error("Signup failed:", error);
       alert("Signup failed. Please try again.");
     }
+  };
+  const handleAddContact = (newContact) => {
+    // Use 'contact' instead of 'contacts'
+    setContact((prev) => [...prev, newContact]);
+
+    setAllContacts((prev) => [
+      ...prev,
+      {
+        id: newContact.id,
+        name: newContact.name,
+        isOnline: newContact.isOnline,
+        avatar: newContact.name.charAt(0),
+      },
+    ]);
+
+    console.log("New contact added:", newContact);
   };
 
   // Logout handler
@@ -1346,7 +1363,13 @@ export default function Home() {
           onSave={handleGroupSettingsUpdate}
           group={activeChat}
         />
-
+        {/* Add Contact Modal */}
+        <AddContactModal
+          isOpen={showAddContact}
+          onClose={() => setShowAddContact(false)}
+          onAddContact={handleAddContact}
+          existingContacts={contacts}
+        />
         {/* Auth and Profile Modals */}
         <AuthModal
           isOpen={showAuthModal}
