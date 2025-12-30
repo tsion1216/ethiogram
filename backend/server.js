@@ -8,17 +8,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
-mongoose.connect("mongodb://localhost:27017/ethiogram", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-const db = mongoose.connection;
-db.on("error", console.error.bind(console, "MongoDB connection error:"));
-db.once("open", () => {
-  console.log("✅ Connected to MongoDB");
-});
+// MongoDB Connection - FIXED VERSION (remove deprecated options)
+mongoose
+  .connect("mongodb://localhost:27017/ethiogram")
+  .then(() => {
+    console.log("✅ Connected to MongoDB");
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+    console.log(
+      "⚠️  If you don't have MongoDB installed, install it or run with in-memory storage"
+    );
+    // Exit or continue without DB based on your preference
+    // process.exit(1); // Uncomment to exit if DB connection fails
+  });
 
 // MongoDB Schemas
 const userSchema = new mongoose.Schema({
@@ -92,8 +95,16 @@ const io = new Server(server, {
   transports: ["websocket", "polling"],
 });
 
-// In-memory for active connections
+// In-memory for active connections (fallback if DB fails)
 const activeSockets = new Map();
+const inMemoryUsers = new Map();
+const inMemoryGroups = new Map();
+const inMemoryMessages = new Map();
+
+// Check if MongoDB is connected
+const isMongoConnected = () => {
+  return mongoose.connection.readyState === 1;
+};
 
 io.on("connection", async (socket) => {
   console.log(`🔗 New connection: ${socket.id}`);
@@ -101,11 +112,34 @@ io.on("connection", async (socket) => {
   // User joined
   socket.on("user_joined", async (userData) => {
     try {
-      // Save or update user in database
-      let user = await User.findOne({ userId: userData.userId });
+      if (isMongoConnected()) {
+        // Save or update user in database
+        let user = await User.findOne({ userId: userData.userId });
 
-      if (!user) {
-        user = new User({
+        if (!user) {
+          user = new User({
+            userId: userData.userId,
+            name: userData.name,
+            email: userData.email || "",
+            phone: userData.phone || "",
+            avatar: userData.avatar || "🇪🇹",
+            isOnline: true,
+            lastSeen: new Date(),
+            joinedAt: new Date(),
+            status: "online",
+          });
+        } else {
+          user.isOnline = true;
+          user.lastSeen = new Date();
+          user.status = "online";
+          if (userData.name) user.name = userData.name;
+          if (userData.avatar) user.avatar = userData.avatar;
+        }
+
+        await user.save();
+      } else {
+        // Use in-memory storage if MongoDB not connected
+        inMemoryUsers.set(userData.userId, {
           userId: userData.userId,
           name: userData.name,
           email: userData.email || "",
@@ -116,32 +150,32 @@ io.on("connection", async (socket) => {
           joinedAt: new Date(),
           status: "online",
         });
-      } else {
-        user.isOnline = true;
-        user.lastSeen = new Date();
-        user.status = "online";
-        if (userData.name) user.name = userData.name;
-        if (userData.avatar) user.avatar = userData.avatar;
       }
-
-      await user.save();
 
       activeSockets.set(socket.id, {
         socketId: socket.id,
-        userId: user.userId,
+        userId: userData.userId,
       });
 
-      // Get user's groups from database
-      const userGroups = await Group.find({ members: user.userId });
+      // Get user's groups
+      let userGroups = [];
+      if (isMongoConnected()) {
+        userGroups = await Group.find({ members: userData.userId });
+      } else {
+        // Get from in-memory
+        userGroups = Array.from(inMemoryGroups.values()).filter((group) =>
+          group.members.includes(userData.userId)
+        );
+      }
 
       // Send groups to user
       socket.emit("user_groups", userGroups);
 
       // Broadcast to others
       socket.broadcast.emit("user_online", {
-        userId: user.userId,
-        name: user.name,
-        avatar: user.avatar,
+        userId: userData.userId,
+        name: userData.name,
+        avatar: userData.avatar,
         isOnline: true,
       });
     } catch (error) {
@@ -155,8 +189,8 @@ io.on("connection", async (socket) => {
       const socketData = activeSockets.get(socket.id);
       if (!socketData) return;
 
-      const group = new Group({
-        id: groupData.id,
+      const group = {
+        id: groupData.id || `group-${Date.now()}`,
         name: groupData.name,
         description: groupData.description || "",
         avatar: groupData.avatar || "👥",
@@ -175,9 +209,16 @@ io.on("connection", async (socket) => {
         },
         pinned: false,
         muted: false,
-      });
+      };
 
-      await group.save();
+      if (isMongoConnected()) {
+        // Save to MongoDB
+        const dbGroup = new Group(group);
+        await dbGroup.save();
+      } else {
+        // Save to in-memory
+        inMemoryGroups.set(group.id, group);
+      }
 
       // Notify creator
       socket.emit("group_created", group);
@@ -204,7 +245,16 @@ io.on("connection", async (socket) => {
       const socketData = activeSockets.get(socket.id);
       if (!socketData) return;
 
-      const groups = await Group.find({ members: socketData.userId });
+      let groups = [];
+      if (isMongoConnected()) {
+        groups = await Group.find({ members: socketData.userId });
+      } else {
+        // Get from in-memory
+        groups = Array.from(inMemoryGroups.values()).filter((group) =>
+          group.members.includes(socketData.userId)
+        );
+      }
+
       socket.emit("user_groups", groups);
     } catch (error) {
       console.error("Error fetching groups:", error);
@@ -217,7 +267,7 @@ io.on("connection", async (socket) => {
       const socketData = activeSockets.get(socket.id);
       if (!socketData) return;
 
-      const message = new Message({
+      const message = {
         id: messageData.id,
         text: messageData.text,
         senderId: socketData.userId,
@@ -235,9 +285,19 @@ io.on("connection", async (socket) => {
         voiceDuration: messageData.voiceDuration,
         voiceUrl: messageData.voiceUrl,
         reactions: {},
-      });
+      };
 
-      await message.save();
+      if (isMongoConnected()) {
+        // Save to MongoDB
+        const dbMessage = new Message(message);
+        await dbMessage.save();
+      } else {
+        // Save to in-memory
+        if (!inMemoryMessages.has(message.chatId)) {
+          inMemoryMessages.set(message.chatId, []);
+        }
+        inMemoryMessages.get(message.chatId).push(message);
+      }
 
       // Broadcast message
       io.to(messageData.chatId).emit("receive_message", messageData);
@@ -249,9 +309,16 @@ io.on("connection", async (socket) => {
   // Get Chat History
   socket.on("get_chat_history", async (chatId) => {
     try {
-      const messages = await Message.find({ chatId })
-        .sort({ timestamp: 1 })
-        .limit(100);
+      let messages = [];
+      if (isMongoConnected()) {
+        messages = await Message.find({ chatId })
+          .sort({ timestamp: 1 })
+          .limit(100);
+      } else {
+        // Get from in-memory
+        messages = inMemoryMessages.get(chatId) || [];
+        messages.sort((a, b) => a.timestamp - b.timestamp);
+      }
 
       socket.emit("chat_history", messages);
     } catch (error) {
@@ -264,15 +331,25 @@ io.on("connection", async (socket) => {
     try {
       const socketData = activeSockets.get(socket.id);
       if (socketData) {
-        // Update user status in database
-        await User.findOneAndUpdate(
-          { userId: socketData.userId },
-          {
-            isOnline: false,
-            lastSeen: new Date(),
-            status: "offline",
+        if (isMongoConnected()) {
+          // Update user status in database
+          await User.findOneAndUpdate(
+            { userId: socketData.userId },
+            {
+              isOnline: false,
+              lastSeen: new Date(),
+              status: "offline",
+            }
+          );
+        } else {
+          // Update in-memory
+          const user = inMemoryUsers.get(socketData.userId);
+          if (user) {
+            user.isOnline = false;
+            user.lastSeen = new Date();
+            user.status = "offline";
           }
-        );
+        }
 
         activeSockets.delete(socket.id);
 
@@ -300,7 +377,12 @@ const findSocketByUserId = (userId) => {
 // API Routes for persistent data
 app.get("/api/groups", async (req, res) => {
   try {
-    const groups = await Group.find();
+    let groups = [];
+    if (isMongoConnected()) {
+      groups = await Group.find();
+    } else {
+      groups = Array.from(inMemoryGroups.values());
+    }
     res.json(groups);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -309,7 +391,13 @@ app.get("/api/groups", async (req, res) => {
 
 app.get("/api/groups/:groupId", async (req, res) => {
   try {
-    const group = await Group.findOne({ id: req.params.groupId });
+    let group = null;
+    if (isMongoConnected()) {
+      group = await Group.findOne({ id: req.params.groupId });
+    } else {
+      group = inMemoryGroups.get(req.params.groupId);
+    }
+
     if (group) {
       res.json(group);
     } else {
@@ -322,9 +410,15 @@ app.get("/api/groups/:groupId", async (req, res) => {
 
 app.get("/api/messages/:chatId", async (req, res) => {
   try {
-    const messages = await Message.find({ chatId: req.params.chatId })
-      .sort({ timestamp: 1 })
-      .limit(100);
+    let messages = [];
+    if (isMongoConnected()) {
+      messages = await Message.find({ chatId: req.params.chatId })
+        .sort({ timestamp: 1 })
+        .limit(100);
+    } else {
+      messages = inMemoryMessages.get(req.params.chatId) || [];
+      messages.sort((a, b) => a.timestamp - b.timestamp);
+    }
     res.json(messages);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -333,15 +427,37 @@ app.get("/api/messages/:chatId", async (req, res) => {
 
 app.get("/api/users", async (req, res) => {
   try {
-    const users = await User.find({ isOnline: true });
+    let users = [];
+    if (isMongoConnected()) {
+      users = await User.find({ isOnline: true });
+    } else {
+      users = Array.from(inMemoryUsers.values()).filter((u) => u.isOnline);
+    }
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    mongoConnected: isMongoConnected(),
+    activeUsers: activeSockets.size,
+    inMemoryGroups: inMemoryGroups.size,
+    inMemoryMessages: Array.from(inMemoryMessages.values()).flat().length,
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`✅ Ethiogram backend running on port ${PORT}`);
-  console.log(`📡 Socket.IO server with MongoDB persistence`);
+  console.log(`📡 Socket.IO server ready`);
+  console.log(
+    `🗄️  MongoDB: ${
+      isMongoConnected()
+        ? "Connected"
+        : "Not connected (using in-memory storage)"
+    }`
+  );
 });
