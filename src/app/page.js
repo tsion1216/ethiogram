@@ -45,11 +45,12 @@ import CreateGroupModal from "@/components/CreateGroupModal";
 import AddMembersModal from "@/components/AddMembersModal";
 import GroupInfoSidebar from "@/components/GroupInfoSidebar";
 
-// Import Auth Components (create these files)
+// Import Auth Components
 import AuthModal from "@/components/AuthModal";
 import UserProfileModal from "@/components/UserProfileModal";
-import { auth } from "@/lib/auth";
 import AddContactModal from "@/components/AddContactModal";
+import { auth } from "@/lib/auth";
+
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,6 +58,7 @@ export default function Home() {
   // Authentication States
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showAddContact, setShowAddContact] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   // Chat States
@@ -74,6 +76,48 @@ export default function Home() {
   // Contact and Chat States
   const [selectedContact, setSelectedContact] = useState(null);
   const [activeChatType, setActiveChatType] = useState("group");
+
+  // Contacts State (FIXED: Now using useState)
+  const [contacts, setContacts] = useState([
+    {
+      id: "private-1",
+      name: "Abebe Bekele",
+      lastMessage: "ሰላም! እንዴት ነህ?",
+      time: "2 min",
+      unread: 2,
+      isOnline: true,
+      isGroup: false,
+    },
+    {
+      id: "private-2",
+      name: "Tigist Worku",
+      lastMessage: "መልካም ቀን!",
+      time: "1 hr",
+      unread: 0,
+      isOnline: true,
+      isGroup: false,
+    },
+    {
+      id: "group-1",
+      name: "Ethiogram Main",
+      lastMessage: "Welcome everyone!",
+      time: "2 min",
+      unread: 3,
+      isOnline: true,
+      isGroup: true,
+      groupMembers: 127,
+    },
+    {
+      id: "group-2",
+      name: "Addis Tech Hub",
+      lastMessage: "ሰላም ወንድሞች! 🚀",
+      time: "1 hr",
+      unread: 12,
+      isOnline: true,
+      isGroup: true,
+      groupMembers: 45,
+    },
+  ]);
 
   // Group chat states
   const [activeChat, setActiveChat] = useState({
@@ -97,7 +141,6 @@ export default function Home() {
   const inputRef = useRef(null);
   const socketRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const [showAddContact, setShowAddContact] = useState(false);
 
   // Sample groups data
   const [groups, setGroups] = useState([
@@ -177,48 +220,6 @@ export default function Home() {
     { id: "user-6", name: "Selamawit Tesfaye", isOnline: false, avatar: "S" },
   ]);
 
-  // Update your contacts array to include ids and group info
-  const contacts = [
-    {
-      id: "private-1",
-      name: "Abebe Bekele",
-      lastMessage: "ሰላም! እንዴት ነህ?",
-      time: "2 min",
-      unread: 2,
-      isOnline: true,
-      isGroup: false,
-    },
-    {
-      id: "private-2",
-      name: "Tigist Worku",
-      lastMessage: "መልካም ቀን!",
-      time: "1 hr",
-      unread: 0,
-      isOnline: true,
-      isGroup: false,
-    },
-    {
-      id: "group-1",
-      name: "Ethiogram Main",
-      lastMessage: "Welcome everyone!",
-      time: "2 min",
-      unread: 3,
-      isOnline: true,
-      isGroup: true,
-      groupMembers: 127,
-    },
-    {
-      id: "group-2",
-      name: "Addis Tech Hub",
-      lastMessage: "ሰላም ወንድሞች! 🚀",
-      time: "1 hr",
-      unread: 12,
-      isOnline: true,
-      isGroup: true,
-      groupMembers: 45,
-    },
-  ];
-
   const generateUniqueId = () => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
@@ -292,22 +293,6 @@ export default function Home() {
       alert("Signup failed. Please try again.");
     }
   };
-  const handleAddContact = (newContact) => {
-    // Use 'contact' instead of 'contacts'
-    setContact((prev) => [...prev, newContact]);
-
-    setAllContacts((prev) => [
-      ...prev,
-      {
-        id: newContact.id,
-        name: newContact.name,
-        isOnline: newContact.isOnline,
-        avatar: newContact.name.charAt(0),
-      },
-    ]);
-
-    console.log("New contact added:", newContact);
-  };
 
   // Logout handler
   const handleLogout = () => {
@@ -338,7 +323,28 @@ export default function Home() {
     }
   };
 
-  // ==================== CONTACT CLICK FUNCTIONS ====================
+  // ==================== CONTACT MANAGEMENT FUNCTIONS ====================
+
+  // Add contact handler (FIXED: Now using setContacts)
+  const handleAddContact = (newContact) => {
+    setContacts((prevContacts) => [...prevContacts, newContact]);
+
+    // Also add to allContacts for group invites
+    setAllContacts((prevAllContacts) => [
+      ...prevAllContacts,
+      {
+        id: newContact.id,
+        name: newContact.name,
+        isOnline: newContact.isOnline,
+        avatar: newContact.name.charAt(0),
+      },
+    ]);
+
+    console.log("New contact added:", newContact);
+
+    // Switch to chat with new contact immediately
+    handleContactClick(newContact);
+  };
 
   // Function to handle contact click
   const handleContactClick = (contact) => {
@@ -851,8 +857,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto p-4">
         <div className="bg-white rounded-2xl shadow-chat overflow-hidden">
           <div className="flex h-[75vh]">
-            {/* Sidebar */}
-
+            {/* Sidebar with Scrollable Contacts */}
             <div className="w-1/4 border-r bg-gray-50 flex flex-col">
               <div className="p-4">
                 <div className="flex justify-between items-center mb-4">
@@ -968,6 +973,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
             {/* Chat Area */}
             <div className="flex-1 flex flex-col">
               {/* Chat Header */}
@@ -1341,7 +1347,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Modals */}
+        {/* All Modals */}
         <CreateGroupModal
           isOpen={showCreateGroup}
           onClose={() => setShowCreateGroup(false)}
@@ -1363,13 +1369,7 @@ export default function Home() {
           onSave={handleGroupSettingsUpdate}
           group={activeChat}
         />
-        {/* Add Contact Modal */}
-        <AddContactModal
-          isOpen={showAddContact}
-          onClose={() => setShowAddContact(false)}
-          onAddContact={handleAddContact}
-          existingContacts={contacts}
-        />
+
         {/* Auth and Profile Modals */}
         <AuthModal
           isOpen={showAuthModal}
@@ -1383,6 +1383,14 @@ export default function Home() {
           onClose={() => setShowProfileModal(false)}
           user={currentUser}
           onUpdate={handleProfileUpdate}
+        />
+
+        {/* Add Contact Modal */}
+        <AddContactModal
+          isOpen={showAddContact}
+          onClose={() => setShowAddContact(false)}
+          onAddContact={handleAddContact}
+          existingContacts={contacts}
         />
 
         {/* Stats Footer */}
