@@ -8,19 +8,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection - FIXED VERSION (remove deprecated options)
+// MongoDB Connection - Use environment variable
+const MONGODB_URI =
+  process.env.MONGODB_URI || "mongodb://localhost:27017/ethiogram";
 mongoose
-  .connect("mongodb://localhost:27017/ethiogram")
+  .connect(MONGODB_URI)
   .then(() => {
     console.log("✅ Connected to MongoDB");
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection error:", err.message);
-    console.log(
-      "⚠️  If you don't have MongoDB installed, install it or run with in-memory storage"
-    );
-    // Exit or continue without DB based on your preference
-    // process.exit(1); // Uncomment to exit if DB connection fails
+    console.log("⚠️  Using in-memory storage (MongoDB not available)");
   });
 
 // MongoDB Schemas
@@ -88,7 +85,8 @@ const Message = mongoose.model("Message", messageSchema);
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin:
+      process.env.NODE_ENV === "production" ? "*" : "http://localhost:3000", // UPDATED
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -451,8 +449,9 @@ app.get("/api/health", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`✅ Ethiogram backend running on port ${PORT}`);
+  console.log(`🚀 Ethiogram backend running on port ${PORT}`);
   console.log(`📡 Socket.IO server ready`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(
     `🗄️  MongoDB: ${
       isMongoConnected()
